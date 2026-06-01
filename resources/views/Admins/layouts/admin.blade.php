@@ -107,6 +107,12 @@
                             <i class="fas fa-key me-2"></i> Đối soát API & GA
                         </a>
                     </li>
+                    <li class="mb-2">
+                        <a href="{{ route('admin.suppliers.index') }}"
+                            class="{{ request()->routeIs('admin.suppliers.*') ? 'active' : '' }}">
+                            <i class="fas fa-plug me-2"></i> Nhà cung cấp Key
+                        </a>
+                    </li>
                 </ul>
                 <div class="mt-auto p-3 w-100">
                     <form action="{{ route('admin.logout') }}" method="POST">

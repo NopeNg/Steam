@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'supplier' => [
+        'base_url' => env('SUPPLIER_API_URL', 'http://127.0.0.1:4099'),
+        'api_key' => env('SUPPLIER_API_KEY', 'SUPPLIER_DEMO_KEY_2026'),
+    ],
+
 ];

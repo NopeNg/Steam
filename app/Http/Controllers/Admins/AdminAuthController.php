@@ -33,7 +33,9 @@ class AdminAuthController extends Controller
     public function logout(Request $request)
     {
         Auth::guard('admin')->logout();
-        $request->session()->invalidate();
+        
+        // Chỉ regenerate token, không invalidate toàn bộ session
+        // để phiên đăng nhập player (khách hàng) không bị ảnh hưởng
         $request->session()->regenerateToken();
         
         return redirect()->route('admin.login');

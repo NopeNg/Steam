@@ -66,8 +66,11 @@ class PlayerAuthController extends Controller
     public function logout(Request $request)
     {
         Auth::guard('player')->logout();
-        $request->session()->invalidate();
+        
+        // Chỉ regenerate token, không invalidate toàn bộ session
+        // để phiên đăng nhập admin trên tab khác không bị ảnh hưởng
         $request->session()->regenerateToken();
+        
         return redirect()->route('home');
     }
 }

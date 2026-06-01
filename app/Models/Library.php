@@ -16,6 +16,10 @@ class Library extends Model
     protected $fillable = [
         'player_id',
         'game_key_id',
+        'game_id',
+        'key_code',
+        'version_id',
+        'order_item_id',
         'purchased_at'
     ];
 

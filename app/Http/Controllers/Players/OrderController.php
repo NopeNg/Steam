@@ -10,22 +10,23 @@ use App\Models\OrderItem;
 use App\Models\Player;
 use App\Models\Library;
 use App\Models\GameKey;
+use App\Services\SupplierManagerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
-    private function getCartId() {
-        return Cart::firstOrCreate(['player_id' => Auth::guard('player')->id()])->id;
+    private SupplierManagerService $supplierManager;
+
+    public function __construct(SupplierManagerService $supplierManager)
+    {
+        $this->supplierManager = $supplierManager;
     }
 
-    private function generateCustomSteamKey() {
-        $segments = [];
-        for ($i = 0; $i < 4; $i++) {
-            $segments[] = strtoupper(substr(str_shuffle(str_repeat('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 5)), 0, 4));
-        }
-        return implode('-', $segments);
+    private function getCartId() {
+        return Cart::firstOrCreate(['player_id' => Auth::guard('player')->id()])->id;
     }
 
     public function checkout() {
@@ -42,26 +43,29 @@ class OrderController extends Controller
 
         $total = $cartItems->sum(fn($item) => ($item->version->discount_price ?? $item->version->price) * $item->quantity);
         $playerId = Auth::guard('player')->id();
+        $playerEmail = Auth::guard('player')->user()->email;
 
-        $order = DB::transaction(function () use ($request, $cartItems, $total, $cartId, $playerId) {
-            // Tạo Order
+        $order = DB::transaction(function () use ($request, $cartItems, $total, $cartId, $playerId, $playerEmail) {
             $newOrder = Order::create([
                 'player_id' => $playerId,
                 'total_amount' => $total,
-                'order_type' => $request->order_type, 
-                'status' => 'Completed',
+                'order_type' => $request->order_type,
+                'status' => 'Pending',
                 'payment_method' => $request->payment_method ?? 'VNPAY'
             ]);
 
+            $hasApiError = false;
+            $lastSupplierName = null;
+            $lastSupplierCode = null;
+
             foreach ($cartItems as $item) {
-                // Kiểm tra game đã sở hữu chưa
                 $gameId = $item->version->game_id;
+
                 $alreadyOwned = Library::where('player_id', $playerId)
                     ->whereHas('gameKey.orderItem.version', function($query) use ($gameId) {
                         $query->where('game_id', $gameId);
                     })->exists();
 
-                // Logic: Nếu chọn Personal mà đã sở hữu -> Tự đổi sang Other để user giữ Key
                 $isPersonal = ($request->order_type === 'Personal' && !$alreadyOwned);
                 
                 if ($request->order_type === 'Personal' && $alreadyOwned) {
@@ -75,21 +79,70 @@ class OrderController extends Controller
                     'price_at_purchase' => $item->version->discount_price ?? $item->version->price
                 ]);
 
-                $newKeyId = DB::table('game_keys')->insertGetId([
-                    'order_item_id' => $orderItem->id, 
-                    'key_code' => $this->generateCustomSteamKey(),
-                    'status' => $isPersonal ? 'Activated' : 'Delivered',
-                    'fetched_at' => now(),
-                    'supplier_transaction_id' => 'SIM-' . uniqid() 
-                ]);
+                // === GỌI SUPPLIER MANAGER (tự động chọn supplier phù hợp) ===
+                $quantity = $item->quantity;
+                $result = $this->supplierManager->purchaseKeys($gameId, $quantity, $playerEmail);
 
-                // Đưa vào Library để hiển thị trong kho (dù là Activated hay Delivered)
-                Library::create([
-                    'player_id' => $playerId,
-                    'game_key_id' => $newKeyId 
-                ]);
+                if ($result['success']) {
+                    $lastSupplierName = $result['supplier_name'] ?? 'Unknown';
+                    $lastSupplierCode = $result['supplier_code'] ?? 'UNKNOWN';
+
+                    foreach ($result['keys'] as $keyCode) {
+                        GameKey::create([
+                            'order_item_id' => $orderItem->id,
+                            'key_code' => $keyCode,
+                            'status' => $isPersonal ? 'Activated' : 'Delivered',
+                            'fetched_at' => now(),
+                            'supplier_transaction_id' => $result['transaction_id'],
+                            'supplier_code' => $lastSupplierCode,
+                        ]);
+                    }
+
+                    Library::create([
+                        'player_id' => $playerId,
+                        'game_key_id' => null,
+                        'game_id' => $gameId,
+                        'key_code' => $result['keys'][0] ?? '',
+                        'version_id' => $item->game_version_id,
+                        'order_item_id' => $orderItem->id,
+                    ]);
+
+                    $lastKey = GameKey::where('order_item_id', $orderItem->id)->latest()->first();
+                    if ($lastKey) {
+                        Library::where('player_id', $playerId)
+                            ->where('order_item_id', $orderItem->id)
+                            ->update(['game_key_id' => $lastKey->id]);
+                    }
+                } else {
+                    $hasApiError = true;
+                    Log::error('[Order] All suppliers failed for order #' . $newOrder->id, [
+                        'game_id' => $gameId,
+                        'error' => $result['error'],
+                        'error_code' => $result['error_code'] ?? '',
+                    ]);
+
+                    // Fake fallback key
+                    $fakeKey = 'FALLBACK-' . strtoupper(substr(uniqid(), -8)) . '-' . $gameId;
+                    GameKey::create([
+                        'order_item_id' => $orderItem->id,
+                        'key_code' => $fakeKey,
+                        'status' => 'Delivered',
+                        'fetched_at' => now(),
+                        'supplier_transaction_id' => 'FALLBACK-' . uniqid(),
+                    ]);
+
+                    Library::create([
+                        'player_id' => $playerId,
+                        'game_key_id' => null,
+                        'game_id' => $gameId,
+                        'key_code' => $fakeKey,
+                        'version_id' => $item->game_version_id,
+                        'order_item_id' => $orderItem->id,
+                    ]);
+                }
             }
             
+            $newOrder->update(['status' => $hasApiError ? 'API_Error' : 'Completed']);
             CartItem::where('cart_id', $cartId)->delete();
             return $newOrder;
         });
@@ -98,11 +151,10 @@ class OrderController extends Controller
     }
 
     public function waiting($order_id) {
-        $order = Order::with(['items.version.game'])
+        $order = Order::with(['orderItems.version.game'])
                       ->where('id', $order_id)
                       ->where('player_id', Auth::guard('player')->id())
                       ->firstOrFail();
-        
         return view('Players.orders.waiting', compact('order'));
     }
 
@@ -113,11 +165,10 @@ class OrderController extends Controller
     }
 
     public function detail($id) {
-        $order = Order::with(['items.version.game'])
+        $order = Order::with(['orderItems.version.game'])
                       ->where('id', $id)
                       ->where('player_id', Auth::guard('player')->id())
                       ->firstOrFail();
-
         return view('Players.orders.detail', compact('order'));
     }
 }

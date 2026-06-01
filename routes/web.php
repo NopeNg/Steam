@@ -110,5 +110,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/custom', [\App\Http\Controllers\Admins\KeyController::class, 'storeCustom'])->name('custom.store');
         });
 
+        Route::prefix('suppliers')->name('suppliers.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admins\SupplierController::class, 'index'])->name('index');
+            Route::get('/create', [\App\Http\Controllers\Admins\SupplierController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\Admins\SupplierController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [\App\Http\Controllers\Admins\SupplierController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [\App\Http\Controllers\Admins\SupplierController::class, 'update'])->name('update');
+            Route::delete('/{id}', [\App\Http\Controllers\Admins\SupplierController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/health-check', [\App\Http\Controllers\Admins\SupplierController::class, 'healthCheck'])->name('healthCheck');
+            Route::put('/{id}/toggle', [\App\Http\Controllers\Admins\SupplierController::class, 'toggleStatus'])->name('toggle');
+
+            Route::get('/mapping/list', [\App\Http\Controllers\Admins\SupplierController::class, 'mappingIndex'])->name('mapping');
+            Route::get('/mapping/create', [\App\Http\Controllers\Admins\SupplierController::class, 'mappingCreate'])->name('mapping.create');
+            Route::post('/mapping', [\App\Http\Controllers\Admins\SupplierController::class, 'mappingStore'])->name('mapping.store');
+            Route::get('/mapping/{id}/edit', [\App\Http\Controllers\Admins\SupplierController::class, 'mappingEdit'])->name('mapping.edit');
+            Route::put('/mapping/{id}', [\App\Http\Controllers\Admins\SupplierController::class, 'mappingUpdate'])->name('mapping.update');
+            Route::delete('/mapping/{id}', [\App\Http\Controllers\Admins\SupplierController::class, 'mappingDestroy'])->name('mapping.destroy');
+        });
+
     });
 });
