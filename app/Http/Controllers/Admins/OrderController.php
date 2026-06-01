@@ -55,7 +55,7 @@ class OrderController extends Controller
 
     public function refund($id)
     {
-        $order = \App\Models\Order::with('player')->findOrFail($id);
+        $order = \App\Models\Order::with(['player', 'orderItems'])->findOrFail($id);
 
         if ($order->status !== 'API_Error') {
             return back()->withErrors(['error' => 'Chỉ có thể hoàn tiền cho đơn hàng bị lỗi API.']);
@@ -65,6 +65,12 @@ class OrderController extends Controller
         $alreadyRefunded = \App\Models\WalletTransaction::where('transaction_code', 'REFUND_ORD_' . $order->id)->exists();
         if ($alreadyRefunded) {
             return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền trước đó. Không thể hoàn tiền lần nữa.']);
+        }
+
+        // Kiểm tra đã cấp key thủ công chưa
+        $hasManualKey = \App\Models\GameKey::where('order_item_id', $order->orderItems()->pluck('id'))->exists();
+        if ($hasManualKey) {
+            return back()->withErrors(['error' => 'Đơn hàng này đã được cấp key. Không thể hoàn tiền sau khi đã cấp key.']);
         }
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($order) {
@@ -88,25 +94,51 @@ class OrderController extends Controller
             'key_code' => 'required|string|max:255',
         ]);
 
-        $order = \App\Models\Order::findOrFail($id);
+        $order = \App\Models\Order::with('orderItems.version.game')->findOrFail($id);
 
         if ($order->status !== 'API_Error') {
             return back()->withErrors(['error' => 'Chỉ có thể cấp Key thủ công cho đơn lỗi API.']);
         }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $request) {
-            \App\Models\GameKey::create([
-                'game_id' => $order->game_id,
-                'key_code' => $request->key_code,
-                'status' => 'used'
-            ]);
+        // Kiểm tra đã hoàn tiền chưa
+        $alreadyRefunded = \App\Models\WalletTransaction::where('transaction_code', 'REFUND_ORD_' . $order->id)->exists();
+        if ($alreadyRefunded) {
+            return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền. Không thể cấp key sau khi hoàn tiền.']);
+        }
 
-            \App\Models\Library::create([
-                'player_id' => $order->player_id,
-                'game_id' => $order->game_id,
-                'key_code' => $request->key_code,
-                'version_id' => $order->version_id ?? null
-            ]);
+        // Kiểm tra đã có key chưa
+        $hasKey = \App\Models\GameKey::where('order_item_id', $order->orderItems()->pluck('id'))->exists();
+        if ($hasKey) {
+            return back()->withErrors(['error' => 'Đơn hàng này đã được cấp key trước đó. Không thể cấp thêm.']);
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $request) {
+            // Lấy order_item đầu tiên của đơn hàng
+            $orderItem = $order->orderItems()->first();
+
+            if ($orderItem) {
+                $gameId = $orderItem->version->game_id ?? null;
+                $versionId = $orderItem->game_version_id ?? null;
+
+                // Tạo key trong game_keys
+                $gameKey = \App\Models\GameKey::create([
+                    'order_item_id' => $orderItem->id,
+                    'key_code' => $request->key_code,
+                    'status' => 'Delivered',
+                    'fetched_at' => now(),
+                    'supplier_transaction_id' => 'MANUAL_' . uniqid(),
+                ]);
+
+                // Tạo bản ghi library
+                \App\Models\Library::create([
+                    'player_id' => $order->player_id,
+                    'game_key_id' => $gameKey->id,
+                    'game_id' => $gameId,
+                    'key_code' => $request->key_code,
+                    'version_id' => $versionId,
+                    'order_item_id' => $orderItem->id,
+                ]);
+            }
 
             $order->update(['status' => 'Completed']);
         });
