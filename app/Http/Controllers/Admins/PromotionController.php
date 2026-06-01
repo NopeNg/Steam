@@ -30,10 +30,18 @@ class PromotionController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'campaign_name' => 'required',
+            'campaign_name' => 'required|string|max:255',
             'discount_percent' => 'required|numeric|min:1|max:100',
-            'start_time' => 'required',
-            'end_time' => 'required',
+            'start_time' => 'required|date',
+            'end_time' => 'required|date|after:start_time',
+        ], [
+            'campaign_name.required' => 'Tên chiến dịch không được để trống.',
+            'discount_percent.required' => 'Mức giảm giá không được để trống.',
+            'discount_percent.min' => 'Mức giảm giá tối thiểu là 1%.',
+            'discount_percent.max' => 'Mức giảm giá tối đa là 100%.',
+            'start_time.required' => 'Thời gian bắt đầu không được để trống.',
+            'end_time.required' => 'Thời gian kết thúc không được để trống.',
+            'end_time.after' => 'Thời gian kết thúc phải sau thời gian bắt đầu.',
         ]);
 
         Promotion::create($request->only([
@@ -52,10 +60,18 @@ class PromotionController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'campaign_name' => 'required',
+            'campaign_name' => 'required|string|max:255',
             'discount_percent' => 'required|numeric|min:1|max:100',
-            'start_time' => 'required',
-            'end_time' => 'required',
+            'start_time' => 'required|date',
+            'end_time' => 'required|date|after:start_time',
+        ], [
+            'campaign_name.required' => 'Tên chiến dịch không được để trống.',
+            'discount_percent.required' => 'Mức giảm giá không được để trống.',
+            'discount_percent.min' => 'Mức giảm giá tối thiểu là 1%.',
+            'discount_percent.max' => 'Mức giảm giá tối đa là 100%.',
+            'start_time.required' => 'Thời gian bắt đầu không được để trống.',
+            'end_time.required' => 'Thời gian kết thúc không được để trống.',
+            'end_time.after' => 'Thời gian kết thúc phải sau thời gian bắt đầu.',
         ]);
 
         $promotion = Promotion::findOrFail($id);

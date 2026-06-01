@@ -29,6 +29,25 @@ class GameController extends Controller
 
     public function store(Request $request)
     {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'publisher' => 'nullable|string|max:255',
+            'developer' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'requirements' => 'nullable|string',
+            'status' => 'required|in:Active,Inactive',
+            'release_date' => 'nullable|date',
+            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'gallery_types.*' => 'nullable|string',
+            'gallery_parts.*' => 'nullable|string',
+        ], [
+            'name.required' => 'Tên game không được để trống.',
+            'status.in' => 'Trạng thái không hợp lệ.',
+            'cover_image.image' => 'Ảnh bìa phải là file ảnh.',
+            'gallery_images.*.image' => 'Ảnh gallery phải là file ảnh.',
+        ]);
+
         $game = Game::create($request->only([
             'name',
             'publisher',
@@ -73,6 +92,25 @@ class GameController extends Controller
 
     public function update(Request $request, $id)
     {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'publisher' => 'nullable|string|max:255',
+            'developer' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'requirements' => 'nullable|string',
+            'status' => 'required|in:Active,Inactive',
+            'release_date' => 'nullable|date',
+            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'gallery_types.*' => 'nullable|string',
+            'gallery_parts.*' => 'nullable|string',
+        ], [
+            'name.required' => 'Tên game không được để trống.',
+            'status.in' => 'Trạng thái không hợp lệ.',
+            'cover_image.image' => 'Ảnh bìa phải là file ảnh.',
+            'gallery_images.*.image' => 'Ảnh gallery phải là file ảnh.',
+        ]);
+
         $game = Game::findOrFail($id);
 
         $game->update($request->only([

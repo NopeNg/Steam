@@ -41,6 +41,13 @@ class OrderController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
+        $request->validate([
+            'status' => 'required|in:Completed,Pending,API_Error,Failed',
+        ], [
+            'status.required' => 'Trạng thái không được để trống.',
+            'status.in' => 'Trạng thái không hợp lệ.',
+        ]);
+
         $order = Order::findOrFail($id);
         $order->update(['status' => $request->status]);
         return redirect()->back()->with('success', 'Đã cập nhật trạng thái đơn hàng thành công!');
@@ -52,6 +59,12 @@ class OrderController extends Controller
 
         if ($order->status !== 'API_Error') {
             return back()->withErrors(['error' => 'Chỉ có thể hoàn tiền cho đơn hàng bị lỗi API.']);
+        }
+
+        // Kiểm tra đã hoàn tiền trước đó chưa (chống double refund)
+        $alreadyRefunded = \App\Models\WalletTransaction::where('transaction_code', 'REFUND_ORD_' . $order->id)->exists();
+        if ($alreadyRefunded) {
+            return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền trước đó. Không thể hoàn tiền lần nữa.']);
         }
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($order) {
