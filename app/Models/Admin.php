@@ -5,27 +5,21 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class Player extends Authenticatable
+class Admin extends Authenticatable
 {
     use Notifiable;
 
-    protected $table = 'players';
+    protected $table = 'admins';
+
+    public $timestamps = false;
 
     protected $fillable = [
         'username',
         'email',
         'password',
-        'fullname',
-        'status',
     ];
 
     protected $hidden = [
         'password',
-        'remember_token',
     ];
-
-    public function orders()
-    {
-        return $this->hasMany(Order::class);
-    }
 }

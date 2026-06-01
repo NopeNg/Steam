@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Game extends Model
 {
+    protected $table = 'games';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -26,16 +28,16 @@ class Game extends Model
 
     public function images()
     {
-        return $this->hasMany(GameImage::class);
+        return $this->hasMany(GameImage::class, 'game_id');
     }
 
     public function versions()
     {
-        return $this->hasMany(GameVersion::class);
+        return $this->hasMany(GameVersion::class, 'game_id');
     }
 
     public function categories()
     {
-        return $this->belongsToMany(Category::class, 'game_categories');
+        return $this->belongsToMany(Category::class, 'game_categories', 'game_id', 'category_id');
     }
 }

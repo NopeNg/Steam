@@ -14,12 +14,12 @@ class OrderController extends Controller
 
         if ($request->filled('search')) {
             $search = trim($request->search);
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('id', 'like', '%' . $search . '%')
-                  ->orWhereHas('player', function($q2) use ($search) {
-                      $q2->where('username', 'like', '%' . $search . '%')
-                        ->orWhere('email', 'like', '%' . $search . '%');
-                  });
+                    ->orWhereHas('player', function ($q2) use ($search) {
+                        $q2->where('username', 'like', '%' . $search . '%')
+                            ->orWhere('email', 'like', '%' . $search . '%');
+                    });
             });
         }
 
@@ -34,7 +34,8 @@ class OrderController extends Controller
 
     public function show($id)
     {
-        $order = Order::with(['player', 'orderItems.gameVersion.game'])->findOrFail($id);
+        $order = \App\Models\Order::with(['player', 'orderItems.gameVersion.game'])->findOrFail($id);
+
         return view('Admins.orders.show', compact('order'));
     }
 
@@ -43,5 +44,60 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
         $order->update(['status' => $request->status]);
         return redirect()->back()->with('success', 'Đã cập nhật trạng thái đơn hàng thành công!');
+    }
+
+    public function refund($id)
+    {
+        $order = \App\Models\Order::with('player')->findOrFail($id);
+
+        if ($order->status !== 'API_Error') {
+            return back()->withErrors(['error' => 'Chỉ có thể hoàn tiền cho đơn hàng bị lỗi API.']);
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($order) {
+            $order->player->increment('balance', $order->total_amount);
+
+            $order->update(['status' => 'Cancelled']);
+
+            \App\Models\WalletTransaction::create([
+                'player_id' => $order->player_id,
+                'amount' => $order->total_amount,
+                'transaction_code' => 'REFUND_ORD_' . $order->id,
+                'status' => 'success'
+            ]);
+        });
+
+        return back()->with('success', 'Đã hoàn tiền thành công vào ví người chơi và hủy đơn hàng.');
+    }
+    public function manualKey(Request $request, $id)
+    {
+        $request->validate([
+            'key_code' => 'required|string|max:255',
+        ]);
+
+        $order = \App\Models\Order::findOrFail($id);
+
+        if ($order->status !== 'API_Error') {
+            return back()->withErrors(['error' => 'Chỉ có thể cấp Key thủ công cho đơn lỗi API.']);
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $request) {
+            \App\Models\GameKey::create([
+                'game_id' => $order->game_id,
+                'key_code' => $request->key_code,
+                'status' => 'used'
+            ]);
+
+            \App\Models\Library::create([
+                'player_id' => $order->player_id,
+                'game_id' => $order->game_id,
+                'key_code' => $request->key_code,
+                'version_id' => $order->version_id ?? null
+            ]);
+
+            $order->update(['status' => 'Completed']);
+        });
+
+        return back()->with('success', 'Đã cấp Key thủ công và hoàn tất đơn hàng.');
     }
 }

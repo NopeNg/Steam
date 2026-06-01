@@ -36,19 +36,38 @@
             </div>
 
             <div class="flex items-center space-x-4 text-xs normal-case">
-                <a href="{{ route('cart.index') }}" class="bg-[#5c7e10] hover:bg-[#75b022] text-white px-3 py-1.5 rounded-sm flex items-center space-x-2 transition font-medium">
-                    <i class="fa-solid fa-cart-shopping text-sm"></i>
-                    <span>Giỏ hàng</span>
-                    <span class="bg-[#171a21] text-[#beee11] px-1.5 py-0.5 text-[10px] font-bold rounded-sm">0</span>
-                </a>
+                 <a href="{{ route('cart.index') }}" class="bg-[#5c7e10] hover:bg-[#75b022] text-white px-3 py-1.5 rounded-sm flex items-center space-x-2 transition font-medium">
+    <i class="fa-solid fa-cart-shopping text-sm"></i>
+    <span>Giỏ hàng</span>
+    <span class="bg-[#171a21] text-[#beee11] px-1.5 py-0.5 text-[10px] font-bold rounded-sm">
+        {{ $cartCount }}
+    </span>
+</a>
+        
 
                 <div class="flex items-center space-x-3 border-l border-gray-700 pl-4">
                     <a href="{{ route('library.index') }}" class="text-[#c7d5e0] hover:text-white transition font-medium">Thư viện</a>
                     <span class="text-gray-600">|</span>
-                    <div class="flex items-center space-x-2 cursor-pointer group">
-                        <span class="text-sky-400 group-hover:text-white transition font-semibold">Gamer_A</span>
-                        <img src="https://avatars.githubusercontent.com/u/9919?v=4" class="w-6 h-6 rounded-sm border border-sky-500" alt="Avatar">
-                    </div>
+                   <div class="flex items-center space-x-4 text-xs normal-case">
+ 
+
+    <div class="border-l border-gray-700 pl-4 flex items-center space-x-3">
+        @auth('player')
+         
+            <div class="flex items-center space-x-2">
+                <span class="text-sky-400 font-semibold">{{ Auth::guard('player')->user()->username }}</span>
+                <form action="{{ route('logout') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="text-gray-400 hover:text-white transition text-[10px]">(Đăng xuất)</button>
+                </form>
+            </div>
+        @else
+            <a href="{{ route('login') }}" class="text-[#c7d5e0] hover:text-white transition font-medium">Đăng nhập</a>
+            <span class="text-gray-600">|</span>
+            <a href="{{ route('register') }}" class="text-[#c7d5e0] hover:text-white transition font-medium">Đăng ký</a>
+        @endauth
+    </div>
+</div>
                 </div>
             </div>
 

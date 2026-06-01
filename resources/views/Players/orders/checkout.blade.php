@@ -30,6 +30,13 @@
                         <span class="text-[10px] text-[#556772]">Tạo gift-code gửi tặng cho bạn bè kích hoạt.</span>
                     </div>
                 </label>
+                <label class="flex items-center space-x-3 p-3 bg-[#101822] border border-[#2a475e]/30 rounded-sm cursor-pointer hover:border-sky-500/50 transition-all group">
+        <input type="radio" name="order_type" value="Other" class="w-4 h-4 accent-sky-500"> 
+        <div>
+            <span class="text-white font-semibold block text-xs">Khác</span>
+            <span class="text-[9px] text-[#556772]">Mục đích khác</span>
+        </div>
+    </label>
             </div>
         </div>
 
@@ -38,8 +45,8 @@
             <div class="relative">
                 <select name="payment_method" class="w-full bg-[#101822] border border-[#2a475e]/60 text-white p-3 rounded-sm appearance-none focus:outline-none focus:border-sky-400 font-medium transition-all">
                     <option value="VNPAY" selected>Cổng thanh toán điện tử VNPAY (QR Code ngân hàng / ATM)</option>
-                    <option value="MoMo">Ví điện tử MoMo (Thanh toán tự động)</option>
-                    <option value="Bank_Transfer">Chuyển khoản liên ngân hàng 24/7</option>
+                    <!-- <option value="MoMo">Ví điện tử MoMo (Thanh toán tự động)</option>
+                    <option value="Bank_Transfer">Chuyển khoản liên ngân hàng 24/7</option> -->
                 </select>
                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#8f98a0]">
                     <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>

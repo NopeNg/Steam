@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class GameImage extends Model
 {
+    protected $table = 'game_images';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -17,6 +19,6 @@ class GameImage extends Model
 
     public function game()
     {
-        return $this->belongsTo(Game::class);
+        return $this->belongsTo(Game::class, 'game_id');
     }
 }

@@ -6,14 +6,16 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Gift;
 use App\Models\Friendship;
-use App\Models\Library;
 use App\Models\Player;
+use Illuminate\Support\Facades\Auth;
 
 class SocialController extends Controller
 {
+    // Không cần middleware ở đây nếu bạn đã bọc route trong web.php
+    
     // Trang Dashboard Social tổng hợp
     public function index() {
-        $myId = auth()->id() ?? 1;
+        $myId = Auth::guard('player')->id();
 
         $friends = Friendship::where('status', 'Accepted')
             ->where(function ($query) use ($myId) {
@@ -30,76 +32,61 @@ class SocialController extends Controller
     }
 
     // Trang Danh sách bạn bè & Tìm kiếm
-public function friendsIndex(Request $request) {
-    $myId = auth()->id() ?? 1;
-    $searchTerm = $request->input('search');
-    
-    $searchResults = null;
-    $sentRequests = []; // Danh sách các ID bạn đã gửi lời mời
-    $acceptedFriends = []; // Danh sách các ID đã là bạn
-
-    if ($searchTerm) {
-        $searchResults = Player::where('username', 'like', "%$searchTerm%")
-                               ->where('id', '!=', $myId)
-                               ->get();
+    public function friendsIndex(Request $request) {
+        $myId = Auth::guard('player')->id();
+        $searchTerm = $request->input('search');
         
-        // Lấy tất cả các quan hệ giữa mình và những người tìm được
-        $friendships = Friendship::where('sender_id', $myId)
-            ->orWhere('receiver_id', $myId)
-            ->get();
+        $searchResults = null;
+        $sentRequests = []; 
+        $acceptedFriends = []; 
+
+        if ($searchTerm) {
+            $searchResults = Player::where('username', 'like', "%$searchTerm%")
+                                   ->where('id', '!=', $myId)
+                                   ->get();
             
-        foreach ($friendships as $f) {
-            $otherId = ($f->sender_id == $myId) ? $f->receiver_id : $f->sender_id;
-            if ($f->status == 'Accepted') $acceptedFriends[] = $otherId;
-            if ($f->status == 'Pending') $sentRequests[] = $otherId;
+            // Lấy tất cả các quan hệ giữa mình và những người tìm được
+            $friendships = Friendship::where('sender_id', $myId)
+                ->orWhere('receiver_id', $myId)
+                ->get();
+                
+            foreach ($friendships as $f) {
+                $otherId = ($f->sender_id == $myId) ? $f->receiver_id : $f->sender_id;
+                if ($f->status == 'Accepted') $acceptedFriends[] = $otherId;
+                if ($f->status == 'Pending') $sentRequests[] = $otherId;
+            }
         }
+
+        $friends = Friendship::where('status', 'Accepted')
+            ->where(function ($q) use ($myId) {
+                $q->where('sender_id', $myId)->orWhere('receiver_id', $myId);
+            })->with(['sender', 'receiver'])->get();
+
+        return view('Players.social.friends', compact('friends', 'searchResults', 'myId', 'sentRequests', 'acceptedFriends'));
     }
 
-    $friends = Friendship::where('status', 'Accepted')
-        ->where(function ($q) use ($myId) {
-            $q->where('sender_id', $myId)->orWhere('receiver_id', $myId);
-        })->with(['sender', 'receiver'])->get();
-
-    return view('Players.social.friends', compact('friends', 'searchResults', 'myId', 'sentRequests', 'acceptedFriends'));
-}
-
-    // [MỚI] Hàm xử lý tìm kiếm bạn bè
     public function searchFriend(Request $request) {
         return $this->friendsIndex($request);
     }
 
-    // // Trang Danh sách quà tặng
-    // public function giftsIndex() {
-    //     $myId = auth()->id() ?? 1;
-    //     $gifts = Gift::with(['sender', 'game'])
-    //                 ->where('receiver_id', $myId)
-    //                 ->where('status', 'Sent')
-    //                 ->get();
-
-    //     return view('Players.social.gifts', compact('gifts'));
-    // }
-
     // Xử lý Gửi lời mời kết bạn
     public function sendRequest($id) {
-        Friendship::create([
-            'sender_id' => auth()->id() ?? 1,
-            'receiver_id' => $id,
-            'status' => 'Pending'
-        ]);
-        return back()->with('success', 'Đã gửi lời mời kết bạn!');
+        // Kiểm tra xem đã tồn tại lời mời hoặc đã là bạn chưa để tránh trùng lặp
+        $exists = Friendship::where(function($q) use ($id) {
+            $q->where('sender_id', Auth::guard('player')->id())->where('receiver_id', $id);
+        })->orWhere(function($q) use ($id) {
+            $q->where('sender_id', $id)->where('receiver_id', Auth::guard('player')->id());
+        })->exists();
+
+        if (!$exists) {
+            Friendship::create([
+                'sender_id' => Auth::guard('player')->id(),
+                'receiver_id' => $id,
+                'status' => 'Pending'
+            ]);
+            return back()->with('success', 'Đã gửi lời mời kết bạn!');
+        }
+        
+        return back()->with('error', 'Đã tồn tại lời mời hoặc đã là bạn bè.');
     }
-
-    // // Xử lý Nhận quà
-    // public function acceptGift($giftId) {
-    //     $gift = Gift::findOrFail($giftId);
-    //     $gift->update(['status' => 'Claimed']);
-
-    //     Library::create([
-    //         'player_id' => $gift->receiver_id,
-    //         'game_key_id' => $gift->game_key_id,
-    //         'purchased_at' => now()
-    //     ]);
-
-    //     return redirect()->back()->with('success', 'Đã nhận quà thành công!');
-    // }
 }

@@ -13,6 +13,13 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
+        $request->validate([
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+        ], [
+            'end_date.after_or_equal' => 'Ngày kết thúc không được nhỏ hơn ngày bắt đầu.',
+        ]);
+
         $today = Carbon::today();
         $startOfWeek = Carbon::now()->startOfWeek();
         $startOfMonth = Carbon::now()->startOfMonth();
@@ -38,12 +45,12 @@ class DashboardController extends Controller
         $startDate = $request->input('start_date', Carbon::now()->subDays(6)->format('Y-m-d'));
         $endDate = $request->input('end_date', Carbon::now()->format('Y-m-d'));
 
-        $orders = Order::where('status', 'Completed')
+        $chartOrders = Order::where('status', 'Completed')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
             ->orderBy('created_at')
             ->get()
-            ->groupBy(function($date) {
+            ->groupBy(function ($date) {
                 return Carbon::parse($date->created_at)->format('d/m');
             });
 
@@ -54,14 +61,32 @@ class DashboardController extends Controller
         foreach ($period as $date) {
             $dateString = $date->format('d/m');
             $chartDates[] = $dateString;
-            $chartRevenues[] = isset($orders[$dateString]) ? $orders[$dateString]->sum('total_amount') : 0;
+            $chartRevenues[] = isset($chartOrders[$dateString]) ? $chartOrders[$dateString]->sum('total_amount') : 0;
         }
 
+        $orders = Order::with('player')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
         return view('Admins.dashboard', compact(
-            'revenueToday', 'revenueWeek', 'revenueMonth', 'revenueYear',
-            'orders24h', 'orders24hSuccess', 'orders24hPending',
-            'newUsers', 'totalUsers', 'apiErrors',
-            'recentOrders', 'startDate', 'endDate', 'chartDates', 'chartRevenues'
+            'revenueToday',
+            'revenueWeek',
+            'revenueMonth',
+            'revenueYear',
+            'orders24h',
+            'orders24hSuccess',
+            'orders24hPending',
+            'newUsers',
+            'totalUsers',
+            'apiErrors',
+            'recentOrders',
+            'startDate',
+            'endDate',
+            'chartDates',
+            'chartRevenues',
+            'orders'
         ));
     }
 }
