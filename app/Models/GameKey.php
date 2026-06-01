@@ -14,4 +14,9 @@ class GameKey extends Model
     {
         return $this->belongsTo(OrderItem::class, 'order_item_id');
     }
+public function game()
+{
+    // Giả sử GameKey có khóa ngoại là game_id trỏ tới Model Game
+    return $this->belongsTo(Game::class, 'game_id');
+}
 }

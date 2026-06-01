@@ -34,4 +34,14 @@ class Gift extends Model
     {
         return $this->belongsTo(GameKey::class, 'game_key_id');
     }
+
+    // app/Models/Gift.php
+public function game()
+{
+    return $this->belongsTo(GameKey::class, 'game_key_id')->with('game');
+}
+
+protected $casts = [
+    'created_at' => 'datetime',
+];
 }

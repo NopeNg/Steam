@@ -39,4 +39,8 @@ class Library extends Model
     {
         return $this->belongsTo(GameKey::class, 'game_key_id');
     }
+    public function game()
+{
+    return $this->belongsTo(Game::class, 'game_key_id');
+}
 }

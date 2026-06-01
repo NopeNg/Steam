@@ -11,28 +11,59 @@ use Illuminate\Support\Facades\DB;   // Import DB
 
 class LibraryController extends Controller
 {
-public function index() {
+// public function index() {
+//     $playerId = Auth::guard('player')->id();
+
+//     // Lấy tất cả bản ghi trong thư viện
+//     $allLibraries = Library::with(['gameKey.orderItem.version.game', 'gameKey.orderItem.order'])
+//         ->where('player_id', $playerId)
+//         ->get();
+
+//     // Lấy danh sách ID các game mà người chơi đã KÍCH HOẠT thành công
+//     // Cách này giúp kiểm tra cực nhanh ở Blade xem game này đã có bản quyền chưa
+//     $activatedGameIds = Library::where('player_id', $playerId)
+//         ->whereHas('gameKey', fn($q) => $q->where('status', 'Activated'))
+//         ->with('gameKey.orderItem.version')
+//         ->get()
+//         ->pluck('gameKey.orderItem.version.game_id')
+//         ->unique()
+//         ->toArray();
+
+//     $activeGames = $allLibraries->filter(fn($lib) => optional($lib->gameKey)->status === 'Activated');
+//     $inactiveGames = $allLibraries->filter(fn($lib) => optional($lib->gameKey)->status !== 'Activated');
+
+//     return view('Players.library.index', compact('activeGames', 'inactiveGames', 'activatedGameIds'));
+// }
+
+public function index() 
+{
     $playerId = Auth::guard('player')->id();
 
-    // Lấy tất cả bản ghi trong thư viện
+    // 1. Lấy tất cả bản ghi cùng mối quan hệ cần thiết từ database
     $allLibraries = Library::with(['gameKey.orderItem.version.game', 'gameKey.orderItem.order'])
         ->where('player_id', $playerId)
         ->get();
 
-    // Lấy danh sách ID các game mà người chơi đã KÍCH HOẠT thành công
-    // Cách này giúp kiểm tra cực nhanh ở Blade xem game này đã có bản quyền chưa
-    $activatedGameIds = Library::where('player_id', $playerId)
-        ->whereHas('gameKey', fn($q) => $q->where('status', 'Activated'))
-        ->with('gameKey.orderItem.version')
-        ->get()
-        ->pluck('gameKey.orderItem.version.game_id')
-        ->unique()
-        ->toArray();
+    // 2. Phân loại danh sách bằng collection filter
+    // Active: Trạng thái Activated
+    // Revoked: Trạng thái bị thu hồi
+    // Inactive: Các trạng thái còn lại (ví dụ: Delivered, Pending,...) trừ Revoked
+    $activeGames   = $allLibraries->filter(fn($lib) => optional($lib->gameKey)->status === 'Activated');
+    $revokedGames  = $allLibraries->filter(fn($lib) => optional($lib->gameKey)->status === 'Revoked');
+    $inactiveGames = $allLibraries->filter(fn($lib) => 
+        optional($lib->gameKey)->status !== 'Activated' && 
+        optional($lib->gameKey)->status !== 'Revoked'
+    );
 
-    $activeGames = $allLibraries->filter(fn($lib) => optional($lib->gameKey)->status === 'Activated');
-    $inactiveGames = $allLibraries->filter(fn($lib) => optional($lib->gameKey)->status !== 'Activated');
+    // 3. Lấy danh sách ID game đã kích hoạt thành công (dùng cho các logic kiểm tra bản quyền ở View)
+    $activatedGameIds = $activeGames->pluck('gameKey.orderItem.version.game_id')->unique()->toArray();
 
-    return view('Players.library.index', compact('activeGames', 'inactiveGames', 'activatedGameIds'));
+    return view('Players.library.index', compact(
+        'activeGames', 
+        'inactiveGames', 
+        'revokedGames', 
+        'activatedGameIds'
+    ));
 }
 public function redeemView() {
         return view('Players.library.redeem');

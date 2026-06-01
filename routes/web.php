@@ -53,18 +53,35 @@ Route::middleware(['auth.player'])->group(function () {
         Route::post('/activate', [LibraryController::class, 'activate'])->name('library.activate');
     });
 
-    // D. BẠN BÈ
-    Route::prefix('social')->group(function () {
-        Route::get('/', [SocialController::class, 'index'])->name('social.index');
-        Route::get('/friends', [SocialController::class, 'friendsIndex'])->name('friends.index');
-        Route::post('/friends/search', [SocialController::class, 'searchFriend'])->name('friends.search');
-        Route::post('/friends/send-request/{id}', [SocialController::class, 'sendRequest'])->name('friends.request');
-    });
+// D. BẠN BÈ
+Route::prefix('social')->group(function () {
+    Route::get('/', [SocialController::class, 'index'])->name('social.index');
+    Route::get('/friends', [SocialController::class, 'friendsIndex'])->name('friends.index');
+    
+    // Đổi post thành get để fix lỗi 405 Method Not Allowed
+    Route::get('/friends/search', [SocialController::class, 'searchFriend'])->name('friends.search');
+    
+    Route::post('/friends/send-request/{id}', [SocialController::class, 'sendRequest'])->name('friends.request');
+    
+    // Bổ sung các route cho Chấp nhận và Xóa bạn bè (đã làm trong Controller ở bước trước)
+    Route::post('/friends/accept/{id}', [SocialController::class, 'acceptRequest'])->name('friends.accept');
+    Route::delete('/friends/remove/{id}', [SocialController::class, 'removeFriend'])->name('friends.remove');
+});
 
-    // E. QUÀ TẶNG
-    Route::prefix('social/gifts')->group(function () {
-        Route::get('/', [GiftController::class, 'index'])->name('gifts.index');
-        Route::post('/accept/{id}', [GiftController::class, 'accept'])->name('gifts.accept');
-        Route::post('/send', [GiftController::class, 'send'])->name('gifts.send');
-    });
+// E. QUÀ TẶNG
+Route::prefix('social/gifts')->group(function () {
+    // 1. Hiển thị danh sách quà nhận được
+    Route::get('/', [GiftController::class, 'index'])->name('gifts.index');
+    
+    // 2. Hiển thị Form gửi quà cho một người bạn cụ thể
+    // Đặt route này trước để tránh bị trùng với các route có tham số ID phía sau
+    Route::get('/send/{friend_id}', [GiftController::class, 'showSendForm'])->name('gifts.showSendForm');
+    
+    // 3. Xử lý logic gửi quà (POST)
+    Route::post('/send', [GiftController::class, 'send'])->name('gifts.send');
+    
+    // 4. Xử lý nhận hoặc từ chối quà
+    Route::post('/accept/{id}', [GiftController::class, 'accept'])->name('gifts.accept');
+    Route::post('/reject/{id}', [GiftController::class, 'reject'])->name('gifts.reject');
+});
 });
