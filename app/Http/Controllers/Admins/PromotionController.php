@@ -44,9 +44,18 @@ class PromotionController extends Controller
             'end_time.after' => 'Thời gian kết thúc phải sau thời gian bắt đầu.',
         ]);
 
-        Promotion::create($request->only([
+        $promotion = Promotion::create($request->only([
             'campaign_name', 'discount_percent', 'start_time', 'end_time'
         ]));
+
+        // Cập nhật discount_price cho tất cả game_versions (tính toán giá sau giảm)
+        \App\Models\GameVersion::all()->each(function($version) use ($promotion) {
+            $discountedPrice = $version->price * (1 - $promotion->discount_percent / 100);
+            $version->update([
+                'promotion_id' => $promotion->id,
+                'discount_price' => round($discountedPrice, 2)
+            ]);
+        });
 
         return redirect()->route('admin.promotions.index')->with('success', 'Đã thêm mới chiến dịch khuyến mãi thành công!');
     }
@@ -73,11 +82,18 @@ class PromotionController extends Controller
             'end_time.required' => 'Thời gian kết thúc không được để trống.',
             'end_time.after' => 'Thời gian kết thúc phải sau thời gian bắt đầu.',
         ]);
-
         $promotion = Promotion::findOrFail($id);
         $promotion->update($request->only([
             'campaign_name', 'discount_percent', 'start_time', 'end_time'
         ]));
+
+        // Cập nhật lại discount_price cho tất cả game_versions với mức giảm mới
+        \App\Models\GameVersion::where('promotion_id', $id)->each(function($version) use ($promotion) {
+            $discountedPrice = $version->price * (1 - $promotion->discount_percent / 100);
+            $version->update([
+                'discount_price' => round($discountedPrice, 2)
+            ]);
+        });
 
         return redirect()->route('admin.promotions.index')->with('success', 'Đã cập nhật chiến dịch khuyến mãi thành công!');
     }
@@ -85,8 +101,14 @@ class PromotionController extends Controller
     public function destroy($id)
     {
         $promotion = Promotion::findOrFail($id);
+        
+        \App\Models\GameVersion::where('promotion_id', $id)->update([
+            'promotion_id' => null,
+            'discount_price' => null
+        ]);
+
         $promotion->delete();
 
-        return redirect()->back()->with('success', 'Đã xóa chiến dịch khuyến mãi thành công!');
+        return redirect()->back()->with('success', 'Đã xóa chiến dịch khuyến mãi thành công và cập nhật lại giá các phiên bản game!');
     }
 }

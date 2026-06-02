@@ -14,7 +14,7 @@
                 @foreach($cartItems as $item)
                 <div class="bg-[#171a21] p-4 rounded-sm border border-[#2a475e]/20 flex justify-between items-center text-xs">
                     <div class="flex items-center space-x-4">
-                        <img src="https://via.placeholder.com/120x60" class="w-20 h-10 object-cover rounded-xs">
+                        <img src="{{ $item->version->game->cover_image }}" class="w-20 h-10 object-cover rounded-xs">
                         <div>
                             <h3 class="text-white font-bold text-sm">{{ $item->version->game->name }}</h3>
                             <p class="text-gray-500 mt-0.5">Phiên bản: {{ $item->version->version_name }}</p>
