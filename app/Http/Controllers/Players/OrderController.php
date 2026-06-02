@@ -58,6 +58,8 @@ class OrderController extends Controller
             $lastSupplierName = null;
             $lastSupplierCode = null;
 
+            $hasAnyPersonalGame = false;
+            
             foreach ($cartItems as $item) {
                 $gameId = $item->version->game_id;
 
@@ -68,8 +70,12 @@ class OrderController extends Controller
 
                 $isPersonal = ($request->order_type === 'Personal' && !$alreadyOwned);
                 
+                // Nếu đặt là Personal nhưng game đã sở hữu → chuyển order sang Other
                 if ($request->order_type === 'Personal' && $alreadyOwned) {
                     $newOrder->update(['order_type' => 'Other']);
+                } else if ($isPersonal) {
+                    // Có ít nhất 1 game là Personal
+                    $hasAnyPersonalGame = true;
                 }
 
                 $orderItem = OrderItem::create([
@@ -87,31 +93,29 @@ class OrderController extends Controller
                     $lastSupplierName = $result['supplier_name'] ?? 'Unknown';
                     $lastSupplierCode = $result['supplier_code'] ?? 'UNKNOWN';
 
+                    $gameKeyIds = [];
                     foreach ($result['keys'] as $keyCode) {
-                        GameKey::create([
+                        $gameKey = GameKey::create([
                             'order_item_id' => $orderItem->id,
                             'key_code' => $keyCode,
-                            'status' => $isPersonal ? 'Activated' : 'Delivered',
+                            'status' => 'Pending',  // Key tạo lúc mua có status Pending
                             'fetched_at' => now(),
                             'supplier_transaction_id' => $result['transaction_id'],
                             'supplier_code' => $lastSupplierCode,
                         ]);
+                        $gameKeyIds[] = $gameKey->id;
                     }
 
-                    Library::create([
-                        'player_id' => $playerId,
-                        'game_key_id' => null,
-                        'game_id' => $gameId,
-                        'key_code' => $result['keys'][0] ?? '',
-                        'version_id' => $item->game_version_id,
-                        'order_item_id' => $orderItem->id,
-                    ]);
-
-                    $lastKey = GameKey::where('order_item_id', $orderItem->id)->latest()->first();
-                    if ($lastKey) {
-                        Library::where('player_id', $playerId)
-                            ->where('order_item_id', $orderItem->id)
-                            ->update(['game_key_id' => $lastKey->id]);
+                    // Tạo Library chỉ với key thực (không null)
+                    if (!empty($gameKeyIds)) {
+                        Library::create([
+                            'player_id' => $playerId,
+                            'game_key_id' => $gameKeyIds[0],
+                            'game_id' => $gameId,
+                            'key_code' => $result['keys'][0] ?? '',
+                            'version_id' => $item->game_version_id,
+                            'order_item_id' => $orderItem->id,
+                        ]);
                     }
                 } else {
                     $hasApiError = true;
@@ -120,25 +124,8 @@ class OrderController extends Controller
                         'error' => $result['error'],
                         'error_code' => $result['error_code'] ?? '',
                     ]);
-
-                    // Fake fallback key
-                    $fakeKey = 'FALLBACK-' . strtoupper(substr(uniqid(), -8)) . '-' . $gameId;
-                    $gameKey = GameKey::create([
-                        'order_item_id' => $orderItem->id,
-                        'key_code' => $fakeKey,
-                        'status' => 'Delivered',
-                        'fetched_at' => now(),
-                        'supplier_transaction_id' => 'FALLBACK-' . uniqid(),
-                    ]);
-
-                    Library::create([
-                        'player_id' => $playerId,
-                        'game_key_id' => $gameKey->id,
-                        'game_id' => $gameId,
-                        'key_code' => $fakeKey,
-                        'version_id' => $item->game_version_id,
-                        'order_item_id' => $orderItem->id,
-                    ]);
+                    // Khi API lỗi: KHÔNG tạo fallback key, KHÔNG tạo library record
+                    // Chỉ ghi nhận status = 'API_Error' để admin xử lý hoàn tiền hoặc cấp key thủ công
                 }
             }
             

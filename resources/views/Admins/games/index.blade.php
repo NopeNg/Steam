@@ -34,58 +34,71 @@
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="text-muted small border-bottom">
-                            <tr>
-                                <th class="px-4" style="width: 50px;">ID</th>
-                                <th style="width: 80px;">ẢNH</th>
-                                <th>TÊN GAME</th>
-                                <th>NHÀ PHÁT HÀNH</th>
-                                <th>TRẠNG THÁI</th>
-                                <th class="text-end px-4">THAO TÁC</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($games as $game)
-                                <tr>
-                                    <td class="px-4 fw-bold">{{ $game->id }}</td>
-                                    <td>
-                                        <img src="{{ $game->cover_image }}" alt="{{ $game->name }}"
-                                            class="img-fluid rounded shadow-sm"
-                                            style="height: 60px; width: 45px; object-fit: cover;">
-                                    </td>
-                                    <td>
-                                        <h6 class="mb-0 fw-bold">{{ $game->name }}</h6>
-                                        <small class="text-muted">Phát hành:
-                                            {{ \Carbon\Carbon::parse($game->release_date)->format('d/m/Y') }}</small>
-                                    </td>
-                                    <td>{{ $game->publisher }}</td>
-                                    <td>
-                                        <span class="badge {{ $game->status == 'Active' ? 'bg-success' : 'bg-secondary' }}">
-                                            {{ $game->status == 'Active' ? 'Đang bán' : 'Tạm ẩn' }}
-                                        </span>
-                                    </td>
-                                    <td class="text-end px-4">
-                                        <a href="{{ route('admin.games.show', $game->id) }}" class="btn btn-sm btn-outline-info"
-                                            title="Xem chi tiết"><i class="fas fa-eye"></i></a>
-                                        <a href="{{ route('admin.games.edit', $game->id) }}"
-                                            class="btn btn-sm btn-outline-primary" title="Chỉnh sửa"><i
-                                                class="fas fa-edit"></i></a>
-                                        <form action="{{ route('admin.games.destroy', $game->id) }}" method="POST"
-                                            class="d-inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa"
-                                                onclick="return confirm('Bạn có chắc chắn muốn xóa game này?')"><i
-                                                    class="fas fa-trash"></i></button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="6" class="text-center py-4 text-muted">Chưa có sản phẩm nào trong hệ thống.
-                                    </td>
-                                </tr>
-                            @endforelse
+                         <thead class="text-muted small border-bottom">
+                             <tr>
+                                 <th class="px-4" style="width: 50px;">ID</th>
+                                 <th style="width: 80px;">ẢNH</th>
+                                 <th>TÊN GAME</th>
+                                 <th>NHÀ PHÁT HÀNH</th>
+                                 <th>TRẠNG THÁI</th>
+                                 <th class="text-end px-4">THAO TÁC</th>
+                             </tr>
+                         </thead>
+                         <tbody>
+                             @forelse($games as $game)
+                                 @php
+                                     // Kiểm tra game có API provider không
+                                     $hasApiProvider = $game->gameMappings()->exists();
+                                 @endphp
+                                 <tr @if(!$hasApiProvider) class="opacity-50" @endif>
+                                     <td class="px-4 fw-bold">{{ $game->id }}</td>
+                                     <td>
+                                         <img src="{{ $game->cover_image }}" alt="{{ $game->name }}"
+                                             class="img-fluid rounded shadow-sm"
+                                             style="height: 60px; width: 45px; object-fit: cover; @if(!$hasApiProvider) opacity: 0.5; @endif">
+                                     </td>
+                                     <td>
+                                         <h6 class="mb-0 fw-bold">{{ $game->name }}</h6>
+                                         <small class="text-muted">Phát hành:
+                                             {{ \Carbon\Carbon::parse($game->release_date)->format('d/m/Y') }}</small>
+                                         @if(!$hasApiProvider)
+                                             <br><small class="text-warning"><i class="fas fa-exclamation-circle me-1"></i>Chưa có nhà cung cấp API</small>
+                                         @endif
+                                     </td>
+                                     <td>{{ $game->publisher }}</td>
+                                     <td>
+                                         <span class="badge {{ $game->status == 'Active' ? 'bg-success' : 'bg-secondary' }}">
+                                             {{ $game->status == 'Active' ? 'Đang bán' : 'Tạm ẩn' }}
+                                         </span>
+                                     </td>
+                                     <td class="text-end px-4">
+                                         @if(!$hasApiProvider)
+                                             <button class="btn btn-sm btn-warning" title="Chưa có API Provider - không thể hoạt động">
+                                                 <i class="fas fa-lock"></i>
+                                             </button>
+                                         @else
+                                             <a href="{{ route('admin.games.show', $game->id) }}" class="btn btn-sm btn-outline-info"
+                                                 title="Xem chi tiết"><i class="fas fa-eye"></i></a>
+                                             <a href="{{ route('admin.games.edit', $game->id) }}"
+                                                 class="btn btn-sm btn-outline-primary" title="Chỉnh sửa"><i
+                                                     class="fas fa-edit"></i></a>
+                                         @endif
+                                         <form action="{{ route('admin.games.destroy', $game->id) }}" method="POST"
+                                             class="d-inline">
+                                             @csrf
+                                             @method('DELETE')
+                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa"
+                                                 onclick="return confirm('Bạn có chắc chắn muốn xóa game này?')"><i
+                                                     class="fas fa-trash"></i></button>
+                                         </form>
+                                     </td>
+                                 </tr>
+                             @empty
+                                 <tr>
+                                     <td colspan="6" class="text-center py-4 text-muted">Chưa có sản phẩm nào trong hệ thống.
+                                     </td>
+                                 </tr>
+                             @endforelse
                         </tbody>
                     </table>
                 </div>

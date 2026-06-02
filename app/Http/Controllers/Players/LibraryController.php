@@ -69,9 +69,9 @@ public function redeemView() {
         return view('Players.library.redeem');
     }
 public function activate(Request $request) {
-    // 1. Kiểm tra Key tồn tại và đang ở trạng thái 'Delivered' (Chưa kích hoạt)
+    // 1. Kiểm tra Key tồn tại và đang ở trạng thái 'Pending' (Chưa kích hoạt)
     $gameKey = GameKey::where('key_code', $request->key_code)
-                      ->where('status', 'Delivered')
+                      ->where('status', 'Pending')
                       ->first();
 
     if (!$gameKey) {
@@ -82,7 +82,6 @@ public function activate(Request $request) {
     $targetGameId = $gameKey->orderItem->version->game_id;
 
     // 2. Kiểm tra xem người dùng đã từng kích hoạt BẤT KỲ phiên bản nào của game này chưa
-    // Chúng ta lội ngược dòng từ Library -> GameKey -> OrderItem -> Version -> Game
     $hasEverActivatedGame = Library::where('player_id', $playerId)
         ->whereHas('gameKey.orderItem.version', function($query) use ($targetGameId) {
             $query->where('game_id', $targetGameId);
@@ -97,15 +96,10 @@ public function activate(Request $request) {
     }
 
     // 3. Nếu thỏa mãn cả 2, thực hiện kích hoạt
-    DB::transaction(function () use ($gameKey, $playerId) {
-        // Cập nhật trạng thái Key
+    DB::transaction(function () use ($gameKey) {
+        // Chỉ cập nhật trạng thái Key thành Activated
+        // Library record đã được tạo sẵn bởi OrderController
         $gameKey->update(['status' => 'Activated']);
-        
-        // Thêm vào Library
-        Library::create([
-            'player_id' => $playerId,
-            'game_key_id' => $gameKey->id
-        ]);
     });
 
     return redirect()->route('library.index')->with('success', 'Kích hoạt thành công!');

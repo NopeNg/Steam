@@ -12,7 +12,9 @@ class GameController extends Controller
     // Trang 2: Danh sách trò chơi có bộ lọc search & category
     public function index(Request $request)
     {
-        $query = Game::with('versions')->where('status', 'Active');
+        $query = Game::with('versions')
+            ->where('status', 'Active')
+            ->whereHas('gameMappings');  // Chỉ game có API provider
 
         // Lọc theo từ khóa tìm kiếm
         if ($request->has('search') && $request->search != '') {
@@ -36,7 +38,10 @@ class GameController extends Controller
     public function show($id)
     {
         // Lấy thông tin game cùng với hình ảnh screenshot và các gói phiên bản (Standard, Deluxe...)
-        $game = Game::with(['images', 'versions.promotion'])->findOrFail($id);
+        // Chỉ cho phép xem game nếu nó có API provider
+        $game = Game::with(['images', 'versions.promotion'])
+            ->whereHas('gameMappings')  // Chỉ game có API provider
+            ->findOrFail($id);
         
         return view('Players.games.show', compact('game'));
     }

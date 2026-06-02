@@ -67,8 +67,11 @@ class OrderController extends Controller
             return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền trước đó. Không thể hoàn tiền lần nữa.']);
         }
 
-        // Kiểm tra đã cấp key thủ công chưa
-        $hasManualKey = \App\Models\GameKey::where('order_item_id', $order->orderItems()->pluck('id'))->exists();
+        // Kiểm tra đã cấp key thủ công chưa (không tính fallback key do API lỗi)
+        $orderItemIds = $order->orderItems()->pluck('id')->toArray();
+        $hasManualKey = \App\Models\GameKey::whereIn('order_item_id', $orderItemIds)
+            ->where('supplier_transaction_id', 'not like', 'FALLBACK-%')
+            ->exists();
         if ($hasManualKey) {
             return back()->withErrors(['error' => 'Đơn hàng này đã được cấp key. Không thể hoàn tiền sau khi đã cấp key.']);
         }
@@ -107,7 +110,8 @@ class OrderController extends Controller
         }
 
         // Kiểm tra đã có key chưa
-        $hasKey = \App\Models\GameKey::where('order_item_id', $order->orderItems()->pluck('id'))->exists();
+        $orderItemIds = $order->orderItems()->pluck('id')->toArray();
+        $hasKey = \App\Models\GameKey::whereIn('order_item_id', $orderItemIds)->exists();
         if ($hasKey) {
             return back()->withErrors(['error' => 'Đơn hàng này đã được cấp key trước đó. Không thể cấp thêm.']);
         }

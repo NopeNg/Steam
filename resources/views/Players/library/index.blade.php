@@ -16,20 +16,34 @@
 
     {{-- Tab Chưa kích hoạt --}}
     <div id="tab-inactive" class="space-y-4">
-        @forelse($inactiveGames->chunk(10) as $page => $chunk)
-            <div class="page-inactive grid grid-cols-1 md:grid-cols-3 gap-4 {{ $page > 0 ? 'hidden' : '' }}" data-page="{{ $page }}">
+        @forelse($inactiveGames->chunk(12) as $page => $chunk)
+            <div class="page-inactive grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 {{ $page > 0 ? 'hidden' : '' }}" data-page="{{ $page }}">
                 @foreach($chunk as $item) @include('Players.library._game_card', ['item' => $item]) @endforeach
             </div>
         @empty <p class="text-gray-500 text-sm">Chưa có game nào trong trạng thái chờ.</p> @endforelse
+        @if($inactiveGames->count() > 12)
+            <div class="flex justify-center gap-2 mt-4">
+                <button onclick="prevPage('inactive')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">← Trước</button>
+                <span class="px-3 py-1 bg-gray-800 text-gray-300 rounded text-xs">Trang <span id="page-inactive">1</span>/<span id="total-inactive">{{ ceil($inactiveGames->count() / 12) }}</span></span>
+                <button onclick="nextPage('inactive')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">Sau →</button>
+            </div>
+        @endif
     </div>
 
     {{-- Tab Đã kích hoạt --}}
     <div id="tab-active" class="space-y-4 hidden">
-        @forelse($activeGames->chunk(10) as $page => $chunk)
-            <div class="page-active grid grid-cols-1 md:grid-cols-3 gap-4 {{ $page > 0 ? 'hidden' : '' }}" data-page="{{ $page }}">
+        @forelse($activeGames->chunk(12) as $page => $chunk)
+            <div class="page-active grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 {{ $page > 0 ? 'hidden' : '' }}" data-page="{{ $page }}">
                 @foreach($chunk as $item) @include('Players.library._game_card', ['item' => $item]) @endforeach
             </div>
         @empty <p class="text-gray-500 text-sm">Bạn chưa kích hoạt game nào.</p> @endforelse
+        @if($activeGames->count() > 12)
+            <div class="flex justify-center gap-2 mt-4">
+                <button onclick="prevPage('active')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">← Trước</button>
+                <span class="px-3 py-1 bg-gray-800 text-gray-300 rounded text-xs">Trang <span id="page-active">1</span>/<span id="total-active">{{ ceil($activeGames->count() / 12) }}</span></span>
+                <button onclick="nextPage('active')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">Sau →</button>
+            </div>
+        @endif
     </div>
 
     {{-- Tab Đã thu hồi --}}
@@ -63,6 +77,28 @@ function showTab(tab) {
     
     // Style cho nút được chọn
     document.getElementById('btn-' + tab).className = "px-4 py-1.5 text-xs font-bold bg-sky-600 text-white rounded-sm";
+}
+
+function nextPage(tab) {
+    const pages = document.querySelectorAll(`.page-${tab}`);
+    const currentPage = Array.from(pages).findIndex(p => !p.classList.contains('hidden'));
+    if (currentPage < pages.length - 1) {
+        pages[currentPage].classList.add('hidden');
+        pages[currentPage + 1].classList.remove('hidden');
+        const pageEl = document.getElementById(`page-${tab}`);
+        if (pageEl) pageEl.textContent = currentPage + 2;
+    }
+}
+
+function prevPage(tab) {
+    const pages = document.querySelectorAll(`.page-${tab}`);
+    const currentPage = Array.from(pages).findIndex(p => !p.classList.contains('hidden'));
+    if (currentPage > 0) {
+        pages[currentPage].classList.add('hidden');
+        pages[currentPage - 1].classList.remove('hidden');
+        const pageEl = document.getElementById(`page-${tab}`);
+        if (pageEl) pageEl.textContent = currentPage;
+    }
 }
 </script>
 @endsection

@@ -40,4 +40,9 @@ class Game extends Model
     {
         return $this->belongsToMany(Category::class, 'game_categories', 'game_id', 'category_id');
     }
+
+    public function gameMappings()
+    {
+        return $this->hasMany(GameSupplierMapping::class, 'game_id');
+    }
 }

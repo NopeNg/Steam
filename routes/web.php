@@ -50,12 +50,15 @@ Route::middleware(['auth.player'])->group(function () {
     Route::prefix('social')->group(function () {
         Route::get('/', [SocialController::class, 'index'])->name('social.index');
         Route::get('/friends', [SocialController::class, 'friendsIndex'])->name('friends.index');
-        Route::post('/friends/search', [SocialController::class, 'searchFriend'])->name('friends.search');
+        Route::get('/friends/search', [SocialController::class, 'searchFriend'])->name('friends.search');
         Route::post('/friends/send-request/{id}', [SocialController::class, 'sendRequest'])->name('friends.request');
+        Route::post('/friends/accept/{id}', [SocialController::class, 'acceptRequest'])->name('friends.accept');
+        Route::delete('/friends/remove/{id}', [SocialController::class, 'removeFriend'])->name('friends.remove');
     });
 
     Route::prefix('social/gifts')->group(function () {
         Route::get('/', [GiftController::class, 'index'])->name('gifts.index');
+        Route::get('/send/{friend_id}', [GiftController::class, 'showSendForm'])->name('gifts.showSendForm');
         Route::post('/accept/{id}', [GiftController::class, 'accept'])->name('gifts.accept');
         Route::post('/send', [GiftController::class, 'send'])->name('gifts.send');
     });
