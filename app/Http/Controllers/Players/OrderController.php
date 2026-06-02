@@ -123,7 +123,7 @@ class OrderController extends Controller
 
                     // Fake fallback key
                     $fakeKey = 'FALLBACK-' . strtoupper(substr(uniqid(), -8)) . '-' . $gameId;
-                    GameKey::create([
+                    $gameKey = GameKey::create([
                         'order_item_id' => $orderItem->id,
                         'key_code' => $fakeKey,
                         'status' => 'Delivered',
@@ -133,7 +133,7 @@ class OrderController extends Controller
 
                     Library::create([
                         'player_id' => $playerId,
-                        'game_key_id' => null,
+                        'game_key_id' => $gameKey->id,
                         'game_id' => $gameId,
                         'key_code' => $fakeKey,
                         'version_id' => $item->game_version_id,

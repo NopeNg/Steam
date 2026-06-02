@@ -190,21 +190,3 @@ CREATE TABLE wallet_transactions (
     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
 );
 
--- 8. PASSWORD RESET TOKENS (Laravel default)
-
-CREATE TABLE password_reset_tokens (
-    email VARCHAR(150) NOT NULL PRIMARY KEY,
-    token VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP NULL
-);
-
--- 9. SESSIONS (Laravel default)
-
-CREATE TABLE sessions (
-    id VARCHAR(128) NOT NULL PRIMARY KEY,
-    user_id BIGINT UNSIGNED NULL,
-    ip_address VARCHAR(45) NULL,
-    user_agent TEXT NULL,
-    payload LONGTEXT NOT NULL,
-    last_activity INT NOT NULL
-);
