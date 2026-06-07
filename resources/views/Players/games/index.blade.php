@@ -3,12 +3,12 @@
 @section('title', 'Cửa Hàng - Danh Sách Trò Chơi')
 
 @section('content')
-<div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-    
-    <div class="space-y-4">
-        <div class="bg-[#171a21] p-4 rounded-sm border border-[#2a475e]/20 shadow-xl">
-            <h3 class="text-white text-sm uppercase font-semibold tracking-wider mb-4">Bộ lọc tìm kiếm</h3>
-            
+<div class="container mx-auto px-4 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Search and Filter Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-[#171a21] p-6 rounded-lg shadow-xl border border-[#2a475e]/20">
+                <h3 class="text-white text-xl font-bold tracking-wide mb-5">Bộ lọc tìm kiếm</h3>
             <form action="{{ url('/games') }}" method="GET" class="space-y-4">
                 <div>
                     <label class="text-xs text-[#8f98a0] block mb-1">Từ khóa</label>
@@ -69,7 +69,7 @@
                             </div>
 
                             <div class="flex items-center justify-between pt-2 border-t border-[#2a475e]/20">
-                                @if($lowestPriceVersion)
+                                @if($lowestPriceVersion && $lowestPriceVersion->price > 0)
                                     @if($lowestPriceVersion->discount_price)
                                         @php 
                                             $percent = round((($lowestPriceVersion->price - $lowestPriceVersion->discount_price) / $lowestPriceVersion->price) * 100);

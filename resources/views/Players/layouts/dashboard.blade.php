@@ -15,7 +15,6 @@
                 <span class="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold">Trực tuyến</span>
             </div>
         </div>
-
         <nav class="mt-2 py-2 space-y-0.5 text-xs font-medium">
             @php
                 $links = [

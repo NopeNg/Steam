@@ -2,7 +2,9 @@
 CREATE DATABASE IF NOT EXISTS game_key_marketplace;
 USE game_key_marketplace;
 
+-- ============================================
 -- 1. NHÓM BẢNG DANH MỤC & SẢN PHẨM (GAMES)
+-- ============================================
 
 CREATE TABLE categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -38,7 +40,9 @@ CREATE TABLE game_categories (
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
 );
 
+-- ============================================
 -- 2. NHÓM BẢNG KHUYẾN MÃI & PHIÊN BẢN GAME
+-- ============================================
 
 CREATE TABLE promotions (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -59,7 +63,9 @@ CREATE TABLE game_versions (
     FOREIGN KEY (promotion_id) REFERENCES promotions(id) ON DELETE SET NULL
 );
 
+-- ============================================
 -- 3. NHÓM BẢNG NGƯỜI DÙNG & TƯƠNG TÁC
+-- ============================================
 
 CREATE TABLE players (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -91,7 +97,9 @@ CREATE TABLE admins (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ============================================
 -- 4. NHÓM BẢNG ĐƠN HÀNG & KEY SỐ
+-- ============================================
 
 CREATE TABLE orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -127,7 +135,9 @@ CREATE TABLE game_keys (
     FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE SET NULL
 );
 
+-- ============================================
 -- 5. NHÓM BẢNG KHO LƯU TRỮ & QUÀ TẶNG
+-- ============================================
 
 CREATE TABLE library (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -157,7 +167,9 @@ CREATE TABLE gifts (
     CONSTRAINT unique_gift_key UNIQUE (game_key_id)
 );
 
+-- ============================================
 -- 6. NHÓM BẢNG GIỎ HÀNG
+-- ============================================
 
 CREATE TABLE carts (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -178,7 +190,9 @@ CREATE TABLE cart_items (
     CONSTRAINT unique_cart_game UNIQUE (cart_id, game_version_id)
 );
 
+-- ============================================
 -- 7. NHÓM BẢNG VÍ TIỀN & WALLETS
+-- ============================================
 
 CREATE TABLE wallet_transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -190,3 +204,38 @@ CREATE TABLE wallet_transactions (
     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
 );
 
+-- ============================================
+-- 8. NHÓM BẢNG NHÀ CUNG CẤP (SUPPLIERS)
+-- ============================================
+
+CREATE TABLE supplier_providers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    code VARCHAR(100) UNIQUE NOT NULL,
+    base_url VARCHAR(500) NOT NULL,
+    api_key VARCHAR(500),
+    api_key_header VARCHAR(100) DEFAULT 'X-API-Key',
+    timeout INT DEFAULT 15,
+    priority INT DEFAULT 0,
+    headers JSON,
+    purchase_endpoint VARCHAR(500) DEFAULT '/api/purchase',
+    verify_endpoint VARCHAR(500) DEFAULT '/api/verify-key',
+    status VARCHAR(50) DEFAULT 'Active',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE game_supplier_mappings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    game_id INT NOT NULL,
+    supplier_provider_id INT NOT NULL,
+    supplier_game_id VARCHAR(255),
+    status VARCHAR(50) DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_provider_id) REFERENCES supplier_providers(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_game_supplier (game_id, supplier_provider_id)
+);
+
+-- (Log tables removed - feature disabled)

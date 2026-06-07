@@ -76,9 +76,10 @@ class OrderController extends Controller
             return back()->withErrors(['error' => 'Đơn hàng này đã được cấp key. Không thể hoàn tiền sau khi đã cấp key.']);
         }
 
+        $oldStatus = $order->status;
+
         \Illuminate\Support\Facades\DB::transaction(function () use ($order) {
             $order->player->increment('balance', $order->total_amount);
-
             $order->update(['status' => 'Cancelled']);
 
             \App\Models\WalletTransaction::create([

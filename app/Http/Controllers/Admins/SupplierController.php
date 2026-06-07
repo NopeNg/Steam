@@ -186,34 +186,72 @@ class SupplierController extends Controller
 
     public function mappingStore(Request $request)
     {
-        $request->validate([
-            'game_id' => 'required|exists:games,id',
-            'supplier_provider_id' => 'required|exists:supplier_providers,id',
-            'supplier_game_id' => 'nullable|string|max:255',
-            'status' => 'required|in:Active,Inactive',
-        ], [
-            'game_id.required' => 'Vui lòng chọn game.',
-            'supplier_provider_id.required' => 'Vui lòng chọn nhà cung cấp.',
-            'supplier_provider_id.exists' => 'Nhà cung cấp không tồn tại.',
-            'game_id.exists' => 'Game không tồn tại.',
-            'status.in' => 'Trạng thái không hợp lệ.',
-        ]);
+        // Bulk mode: chọn nhiều game cùng 1 nhà cung cấp
+        $isBulk = $request->filled('game_ids') && is_array($request->game_ids) && count($request->game_ids) > 1;
 
-        // Kiểm tra trùng
-        $exists = GameSupplierMapping::where('game_id', $request->game_id)
-            ->where('supplier_provider_id', $request->supplier_provider_id)
-            ->exists();
-
-        if ($exists) {
-            return back()->withErrors(['error' => 'Mapping này đã tồn tại.'])->withInput();
+        if ($isBulk) {
+            $request->validate([
+                'supplier_provider_id' => 'required|exists:supplier_providers,id',
+                'game_ids' => 'required|array|min:1',
+                'game_ids.*' => 'exists:games,id',
+                'status' => 'required|in:Active,Inactive',
+            ], [
+                'supplier_provider_id.required' => 'Vui lòng chọn nhà cung cấp.',
+                'game_ids.required' => 'Vui lòng chọn ít nhất 1 game.',
+                'game_ids.min' => 'Vui lòng chọn ít nhất 1 game.',
+                'status.in' => 'Trạng thái không hợp lệ.',
+            ]);
+        } else {
+            $request->validate([
+                'game_id' => 'required_without:game_ids|exists:games,id',
+                'supplier_provider_id' => 'required|exists:supplier_providers,id',
+                'game_ids' => 'array',
+                'supplier_game_id' => 'nullable|string|max:255',
+                'status' => 'required|in:Active,Inactive',
+            ], [
+                'supplier_provider_id.required' => 'Vui lòng chọn nhà cung cấp.',
+                'supplier_provider_id.exists' => 'Nhà cung cấp không tồn tại.',
+                'game_id.exists' => 'Game không tồn tại.',
+                'status.in' => 'Trạng thái không hợp lệ.',
+            ]);
         }
 
-        GameSupplierMapping::create($request->only([
-            'game_id', 'supplier_provider_id', 'supplier_game_id', 'status'
-        ]));
+        $supplierId = $request->supplier_provider_id;
+        $status = $request->status;
+
+        // Lấy danh sách game_id: ưu tiên game_ids (bulk), nếu không có thì dùng game_id
+        $gameIds = $request->filled('game_ids') && is_array($request->game_ids)
+            ? $request->game_ids
+            : [$request->game_id];
+
+        $created = 0;
+        $skipped = 0;
+
+        foreach ($gameIds as $gid) {
+            $exists = GameSupplierMapping::where('game_id', $gid)
+                ->where('supplier_provider_id', $supplierId)
+                ->exists();
+
+            if ($exists) {
+                $skipped++;
+                continue;
+            }
+
+            GameSupplierMapping::create([
+                'game_id' => $gid,
+                'supplier_provider_id' => $supplierId,
+                'supplier_game_id' => $request->supplier_game_id ?? null,
+                'status' => $status,
+            ]);
+            $created++;
+        }
+
+        $msg = "Đã tạo {$created} liên kết";
+        if ($skipped > 0) $msg .= " (bỏ qua {$skipped} đã tồn tại)";
+        $msg .= '.';
 
         return redirect()->route('admin.suppliers.mapping')
-            ->with('success', 'Đã liên kết game với nhà cung cấp thành công!');
+            ->with('success', $msg);
     }
 
     public function mappingEdit($id)
