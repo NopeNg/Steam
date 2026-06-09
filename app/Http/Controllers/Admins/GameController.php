@@ -183,8 +183,8 @@ class GameController extends Controller
             'release_date'
         ]));
 
-        // 2. LOGIC MỚI: TỰ ĐỘNG QUÉT SẠCH GIỎ HÀNG KHI ADMIN CHUYỂN THÀNH 'Inactive'
-        if ($game->status === 'Inactive') {
+        // 2. LOGIC MỚI: TỰ ĐỘNG QUÉT SẠCH GIỎ HÀNG KHI ADMIN CHUYỂN THÀNH 'Inactive' và 'ComingSoon' và Archived
+        if ($game->status === 'Inactive' || $game->status ==='ComingSoon' || $game->status === 'Archived') {
             // Bước A: Tìm tất cả các ID phiên bản (versions) của trò chơi này
             $versionIds = $game->versions()->pluck('id'); 
 
