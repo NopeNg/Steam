@@ -17,6 +17,20 @@
                 </div>
                 <button type="submit" class="btn btn-steam w-100 py-2">Đăng nhập</button>
             </form>
+              @if ($errors->any())
+    <div class="alert alert-danger">
+        <ul>
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
+    @if (session('error'))
+    <div class="alert alert-danger" style="color: red; background-color: #fce8e6; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+        {{ session('error') }}
+    </div>
+@endif
             <div class="mt-4 text-center">
     <p class="text-secondary small">
         Bạn chưa có tài khoản? 

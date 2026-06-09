@@ -7,10 +7,19 @@ use App\Models\Cart;
 use App\Models\CartItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth; 
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-
-class CartController extends Controller
+class CartController extends Controller implements HasMiddleware
 {
+
+public static function middleware(): array
+    {
+        return [
+            new Middleware('auth.player'),
+        ];
+    }
+    // Hàm lấy hoặc tạo giỏ hàng cho người chơi hiện tại
     private function getCartId() {
         // Lấy ID của người chơi đang đăng nhập
         $playerId = Auth::guard('player')->id();
@@ -18,6 +27,7 @@ class CartController extends Controller
         return $cart->id;
     }
 
+    // Hiển thị giỏ hàng
     public function index() {
         $cartItems = CartItem::with('version.game')
             ->where('cart_id', $this->getCartId())
@@ -25,6 +35,7 @@ class CartController extends Controller
         return view('Players.cart.index', compact('cartItems'));
     }
 
+    // Thêm game vào giỏ hàng
     public function add($versionId) {
         $cartId = $this->getCartId();
         $item = CartItem::where('cart_id', $cartId)

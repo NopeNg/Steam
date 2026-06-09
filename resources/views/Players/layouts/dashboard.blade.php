@@ -40,3 +40,23 @@
     </main>
 </div>
 @endsection
+@if(Auth::guard('player')->check())
+    <script>
+        setInterval(function() {
+            fetch('/api/check-status')
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.status === 'Banned') {
+                        window.location.reload();
+                    }
+                })
+                .catch(error => console.log('Kiểm tra trạng thái thất bại:', error));
+        }, 10000);
+    </script>
+@endif

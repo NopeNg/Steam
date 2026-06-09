@@ -43,7 +43,11 @@
                         {{ number_format($cartItems->sum(function($BC) { return ($BC->version->discount_price ?? $BC->version->price) * $BC->quantity; }), 0, ',', '.') }}đ
                     </span>
                 </div>
-                <a href="{{ route('orders.checkout') }}" class="block text-center bg-gradient-to-r from-[#75b022] to-[#588a1b] text-white py-2.5 font-bold rounded-xs uppercase tracking-wide">Thực hiện thanh toán</a>
+               <a href="{{ route('orders.checkout') }}" 
+   class="block text-center bg-[#6fa127] hover:bg-[#82bd2d] text-[#e5f4d2] py-2.5 font-bold rounded-[2px] border border-black shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-all duration-200 tracking-wide"
+   style="text-shadow: 1px 1px 0px rgba(0,0,0,0.6);">
+    Thực hiện thanh toán
+</a>
             </div>
         </div>
     @endif

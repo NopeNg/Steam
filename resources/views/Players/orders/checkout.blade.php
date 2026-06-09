@@ -30,13 +30,13 @@
                         <span class="text-[10px] text-[#556772]">Tạo gift-code gửi tặng cho bạn bè kích hoạt.</span>
                     </div>
                 </label>
-                <label class="flex items-center space-x-3 p-3 bg-[#101822] border border-[#2a475e]/30 rounded-sm cursor-pointer hover:border-sky-500/50 transition-all group">
+                <!-- <label class="flex items-center space-x-3 p-3 bg-[#101822] border border-[#2a475e]/30 rounded-sm cursor-pointer hover:border-sky-500/50 transition-all group">
         <input type="radio" name="order_type" value="Other" class="w-4 h-4 accent-sky-500"> 
         <div>
             <span class="text-white font-semibold block text-xs">Khác</span>
             <span class="text-[9px] text-[#556772]">Mục đích khác</span>
         </div>
-    </label>
+    </label> -->
             </div>
         </div>
 
@@ -58,9 +58,11 @@
             ⚡ <strong>Lưu ý:</strong> Sau khi click nút thanh toán, hệ thống sẽ thực hiện kết nối xử lý bảo mật. Bạn vui lòng đợi trong giây lát và tuyệt đối không tải lại trang khi tiến trình đang diễn ra.
         </div>
 
-        <button type="submit" class="w-full bg-gradient-to-r from-[#75b022] to-[#588a1b] hover:from-[#8ed629] hover:to-[#6aa720] text-white py-3 rounded-sm text-sm font-bold uppercase transition-all shadow-lg tracking-wider">
-            Xác nhận & Thanh toán đơn hàng
-        </button>
+    <button type="submit" 
+        class="w-full bg-[#6fa127] hover:bg-[#82bd2d] text-[#e5f4d2] py-3 rounded-[2px] text-sm font-bold border border-black shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-all duration-200 tracking-wider"
+        style="text-shadow: 1px 1px 0px rgba(0,0,0,0.6);">
+    Xác nhận & Thanh toán đơn hàng
+</button>
     </form>
 
     <div class="space-y-4">

@@ -20,6 +20,7 @@
     </style>
 </head>
 
+
 <body class="min-h-screen flex flex-col justify-between">
     <header class="bg-[#171a21] text-[#c5c3c0] text-sm uppercase tracking-wider font-semibold shadow-md">
         <div class="max-w-6xl mx-auto px-4 flex items-center justify-between h-16">
@@ -42,6 +43,7 @@
                     <a href="#" class="hover:text-white transition">Hỗ Trợ</a>
                 </nav>
             </div>
+            
 
             <div class="flex items-center space-x-4 text-xs normal-case">
                 <a href="{{ route('cart.index') }}"
@@ -88,7 +90,34 @@
 
         </div>
     </header>
+@if (session('error'))
+    <div id="flash-message" class="alert alert-danger" style="max-width: 500px; margin: 0 auto 20px auto; color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; padding: 8px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; text-align: center; transition: opacity 0.5s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        ⚠️ {{ session('error') }}
+    </div>
+@endif
 
+@if (session('success'))
+    <div id="flash-message" class="alert alert-success" style="max-width: 500px; margin: 0 auto 20px auto; color: #155724; background-color: #d4edda; border-color: #c3e6cb; padding: 8px 12px; border-radius: 4px; font-size: 14px; text-align: center; transition: opacity 0.5s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        {{ session('success') }}
+    </div>
+@endif
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const messages = document.querySelectorAll('#flash-message');
+        
+        messages.forEach(function(message) {
+            if (message) {
+                setTimeout(function () {
+                    message.style.opacity = '0';
+                    setTimeout(function() {
+                        message.remove();
+                    }, 500);
+                }, 5000); // 5 giây biến mất
+            }
+        });
+    });
+</script>
     <main class="flex-grow max-w-6xl w-full mx-auto px-4 py-6">
         @yield('content')
     </main>
@@ -110,8 +139,28 @@
             </p>
         </div>
     </footer>
-    @vite(['resources/js/ChatBot.js'])
+    @vite (['resources/js/ChatBot.js'])
 
+    @if(Auth::guard('player')->check())
+    <script>
+        setInterval(function() {
+            fetch('/api/check-status')
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.status === 'Banned') {
+                        window.location.reload();
+                    }
+                })
+                .catch(error => console.log('Kiểm tra trạng thái thất bại:', error));
+        }, 10000);
+    </script>
+@endif
 </body>
 
 </html>

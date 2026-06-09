@@ -8,9 +8,17 @@ use App\Models\Gift;
 use App\Models\Friendship;
 use App\Models\Player;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class SocialController extends Controller
+class SocialController extends Controller implements HasMiddleware
 {
+        public static function middleware(): array
+    {
+        return [
+            new Middleware('auth.player'),
+        ];
+    }
     // Lấy dữ liệu tổng quan cho trang Social Dashboard
     public function index() {
         $myId = Auth::guard('player')->id();

@@ -19,7 +19,8 @@ CREATE TABLE games (
     cover_image VARCHAR(255),
     publisher VARCHAR(150),
     developer VARCHAR(150),
-    status VARCHAR(50) DEFAULT 'Active',
+    -- Mặc định là 'Inactive' để làm bản nháp an toàn, tránh lộ game chưa hoàn thiện ra ngoài shop
+    status VARCHAR(50) DEFAULT 'Inactive', 
     requirements TEXT
 );
 
@@ -59,6 +60,7 @@ CREATE TABLE game_versions (
     version_name VARCHAR(100) NOT NULL,
     price DECIMAL(15, 2) NOT NULL,
     discount_price DECIMAL(15, 2) DEFAULT NULL,
+    -- ❌ ĐÃ XÓA CỘT STATUS TẠI ĐÂY (Mọi logic kiểm tra mua bán sẽ đi theo status của bảng games)
     FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
     FOREIGN KEY (promotion_id) REFERENCES promotions(id) ON DELETE SET NULL
 );
@@ -73,7 +75,7 @@ CREATE TABLE players (
     email VARCHAR(150) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     fullname VARCHAR(150),
-    status VARCHAR(50) DEFAULT 'Active',
+    status VARCHAR(50) DEFAULT 'Active', -- Player mặc định đăng ký xong là Active để chơi ngay
     balance DECIMAL(15,2) DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -237,5 +239,3 @@ CREATE TABLE game_supplier_mappings (
     FOREIGN KEY (supplier_provider_id) REFERENCES supplier_providers(id) ON DELETE CASCADE,
     UNIQUE KEY unique_game_supplier (game_id, supplier_provider_id)
 );
-
--- (Log tables removed - feature disabled)

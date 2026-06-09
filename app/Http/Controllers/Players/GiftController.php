@@ -6,9 +6,19 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\{Gift, GameKey, Friendship, Player};
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class GiftController extends Controller
+
+class GiftController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('auth.player'),
+        ];
+    }
+
     // Hiển thị form gửi quà
     public function showSendForm($friendId) {
         $friend = Player::findOrFail($friendId);

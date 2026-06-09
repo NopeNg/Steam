@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Game;
 use App\Models\GameImage;
+use App\Models\CartItem;
+
 
 class GameController extends Controller
 {
@@ -90,6 +92,63 @@ class GameController extends Controller
         return view('Admins.games.edit', compact('game'));
     }
 
+    // public function update(Request $request, $id)
+    // {
+    //     $request->validate([
+    //         'name' => 'required|string|max:255',
+    //         'publisher' => 'nullable|string|max:255',
+    //         'developer' => 'nullable|string|max:255',
+    //         'description' => 'nullable|string',
+    //         'requirements' => 'nullable|string',
+    //         'status' => 'required|in:Active,Inactive',
+    //         'release_date' => 'nullable|date',
+    //         'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+    //         'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+    //         'gallery_types.*' => 'nullable|string',
+    //         'gallery_parts.*' => 'nullable|string',
+    //     ], [
+    //         'name.required' => 'Tên game không được để trống.',
+    //         'status.in' => 'Trạng thái không hợp lệ.',
+    //         'cover_image.image' => 'Ảnh bìa phải là file ảnh.',
+    //         'gallery_images.*.image' => 'Ảnh gallery phải là file ảnh.',
+    //     ]);
+
+    //     $game = Game::findOrFail($id);
+
+    //     $game->update($request->only([
+    //         'name',
+    //         'publisher',
+    //         'developer',
+    //         'description',
+    //         'requirements',
+    //         'status',
+    //         'release_date'
+    //     ]));
+
+    //     if ($request->hasFile('cover_image')) {
+    //         $path = $request->file('cover_image')->store('games', 'public');
+    //         $game->update(['cover_image' => '/storage/' . $path]);
+    //     }
+
+    //     if ($request->hasFile('gallery_images')) {
+    //         foreach ($request->file('gallery_images') as $index => $file) {
+    //             if ($file->isValid()) {
+    //                 $path = $file->store('gallery', 'public');
+    //                 GameImage::create([
+    //                     'game_id' => $game->id,
+    //                     'image_path' => '/storage/' . $path,
+    //                     'image_type' => $request->gallery_types[$index],
+    //                     'game_part' => $request->gallery_parts[$index]
+    //                 ]);
+    //             }
+    //         }
+    //     }
+
+    //     return redirect()->route('admin.games.index');
+    // }
+
+
+
     public function update(Request $request, $id)
     {
         $request->validate([
@@ -98,7 +157,7 @@ class GameController extends Controller
             'developer' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'requirements' => 'nullable|string',
-            'status' => 'required|in:Active,Inactive',
+            'status' => 'required|in:Active,Inactive', // Trạng thái từ Form gửi lên
             'release_date' => 'nullable|date',
             'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
@@ -113,6 +172,7 @@ class GameController extends Controller
 
         $game = Game::findOrFail($id);
 
+        // Cập nhật thông tin game cơ bản
         $game->update($request->only([
             'name',
             'publisher',
@@ -122,6 +182,15 @@ class GameController extends Controller
             'status',
             'release_date'
         ]));
+
+        // 2. LOGIC MỚI: TỰ ĐỘNG QUÉT SẠCH GIỎ HÀNG KHI ADMIN CHUYỂN THÀNH 'Inactive'
+        if ($game->status === 'Inactive') {
+            // Bước A: Tìm tất cả các ID phiên bản (versions) của trò chơi này
+            $versionIds = $game->versions()->pluck('id'); 
+
+            // Bước B: Xóa thẳng tay tất cả các item trong giỏ hàng chứa các phiên bản đó
+            CartItem::whereIn('game_version_id', $versionIds)->delete();
+        }
 
         if ($request->hasFile('cover_image')) {
             $path = $request->file('cover_image')->store('games', 'public');
@@ -142,9 +211,9 @@ class GameController extends Controller
             }
         }
 
-        return redirect()->route('admin.games.index');
+        // Thêm thông báo success để Admin biết hệ thống đã xử lý xong
+        return redirect()->route('admin.games.index')->with('success', 'Cập nhật sản phẩm và đồng bộ giỏ hàng thành công!');
     }
-
     public function destroy($id)
     {
         try {

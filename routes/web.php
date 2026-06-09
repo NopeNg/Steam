@@ -13,8 +13,11 @@ use App\Http\Controllers\Players\{
 };
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/api/home-updates', [HomeController::class, 'checkUpdates']);
 Route::get('/games', [GameController::class, 'index'])->name('games.index');
 Route::get('/games/{id}', [GameController::class, 'show'])->name('games.show');
+Route::get('/api/games-list-updates', [GameController::class, 'checkListUpdates']);
+Route::get('/api/games-detail-updates/{id}', [GameController::class, 'checkDetailUpdates']);
 
 Route::get('/register', [PlayerAuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [PlayerAuthController::class, 'register']);
@@ -23,6 +26,10 @@ Route::post('/login', [PlayerAuthController::class, 'login']);
 Route::post('/logout', [PlayerAuthController::class, 'logout'])->name('logout');
 
 Route::middleware(['auth.player'])->group(function () {
+// kiểm tra trạng thái
+Route::get('/api/check-status', function() {
+        return response()->json(['status' => Auth::guard('player')->user()->status]);
+    });
 
     Route::prefix('cart')->group(function () {
         Route::get('/', [CartController::class, 'index'])->name('cart.index');
@@ -38,6 +45,7 @@ Route::middleware(['auth.player'])->group(function () {
         Route::get('/waiting/{order_id}', [OrderController::class, 'waiting'])->name('orders.waiting');
         Route::get('/{id}', [OrderController::class, 'detail'])->name('orders.detail');
         Route::get('/vnpay-return', [OrderController::class, 'vnpayReturn'])->name('vnpay.return');
+        Route::post('/{order_id}/execute', [App\Http\Controllers\Players\OrderController::class, 'executeOrder'])->name('orders.execute');
     });
 
     Route::prefix('library')->group(function () {

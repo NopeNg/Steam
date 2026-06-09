@@ -8,8 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
-class PlayerAuthController extends Controller
+class PlayerAuthController extends Controller 
 {
+
     // Hiển thị form đăng ký
     public function showRegister() 
     { 
@@ -45,22 +46,40 @@ class PlayerAuthController extends Controller
     }
 
     // Xử lý đăng nhập
-    public function login(Request $request) 
-    {
-        $credentials = $request->only('email', 'password');
+public function login(Request $request) 
+{
+    $credentials = $request->only('email', 'password');
 
-        // Sử dụng guard 'player' đã khai báo trong config/auth.php
-        if (Auth::guard('player')->attempt($credentials)) {
-            $request->session()->regenerate();
+    // Sử dụng guard 'player' đã khai báo trong config/auth.php
+    if (Auth::guard('player')->attempt($credentials)) {
+        
+        // 1. Lấy thông tin người chơi vừa đăng nhập thành công
+        $player = Auth::guard('player')->user();
+
+        // 2. Kiểm tra nếu trạng thái là Banned thì chặn đứng lại
+        if ($player->status === 'Banned') {
+            // Thực hiện đăng xuất ngầm ngay lập tức để hủy phiên làm việc vừa tạo
+            Auth::guard('player')->logout();
             
-            // Chuyển hướng về trang chủ
-            return redirect()->route('home')->with('success', 'Đăng nhập thành công!');
+            // Xóa sạch session và làm mới token bảo mật
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            // Trả về trang đăng nhập kèm thông báo lỗi chi tiết
+            return redirect()->route('login')->with('error', 'Tài khoản của bạn đã bị khóa bởi Ban Quản Trị! Để yêu cầu hỗ trợ hoặc mở khóa tài khoản, vui lòng liên hệ với chúng tôi qua Email: support@steam.com.');
         }
 
-        return back()->withErrors([
-            'email' => 'Thông tin đăng nhập không chính xác.',
-        ]);
+        // 3. Nếu tài khoản hoạt động bình thường (Active), tạo lại session và cho vào trong
+        $request->session()->regenerate();
+        
+        // Chuyển hướng về trang chủ
+        return redirect()->route('home')->with('success', 'Đăng nhập thành công!');
     }
+
+    return back()->withErrors([
+        'email' => 'Thông tin đăng nhập không chính xác.',
+    ]);
+}
 
     // Đăng xuất
     public function logout(Request $request)

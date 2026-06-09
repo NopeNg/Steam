@@ -8,9 +8,18 @@ use App\Models\Library;
 use App\Models\GameKey;
 use Illuminate\Support\Facades\Auth; // Import Auth
 use Illuminate\Support\Facades\DB;   // Import DB
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;  
 
-class LibraryController extends Controller
+class LibraryController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('auth.player'),
+        ];
+    }
+
 // public function index() {
 //     $playerId = Auth::guard('player')->id();
 
