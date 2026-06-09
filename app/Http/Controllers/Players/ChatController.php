@@ -84,9 +84,11 @@ chỉ giới thiệu thêm tối đa 1-2 game có nội dung/thể loại liên 
 
     /**
      * Tìm game theo từ khóa trong câu hỏi khách
+     * LUÔN trả về context game để AI biết cửa hàng có những gì
      */
     private function searchGames(string $message): string
     {
+        // === Bước 1: Tìm game cụ thể theo từ khóa trong câu hỏi ===
         $games = Game::with([
             'versions' => function ($q) {
                 $q->select('id', 'game_id', 'version_name', 'price', 'discount_price');
@@ -108,23 +110,50 @@ chỉ giới thiệu thêm tối đa 1-2 game có nội dung/thể loại liên 
             ->limit(5)
             ->get();
 
-        if ($games->isEmpty())
-            return '';
+        // Nếu tìm thấy game cụ thể, trả về thông tin chi tiết
+        if ($games->isNotEmpty()) {
+            $lines = [];
+            foreach ($games as $g) {
+                $prices = $g->versions->map(function ($v) {
+                    $price = $v->discount_price ? number_format($v->discount_price) . 'đ' : number_format($v->price) . 'đ';
+                    return "  + {$v->version_name}: {$price}";
+                })->toArray();
 
-        $lines = [];
-        foreach ($games as $g) {
-            $prices = $g->versions->map(function ($v) {
-                $price = $v->discount_price ? number_format($v->discount_price) . 'đ' : number_format($v->price) . 'đ';
-                return "  + {$v->version_name}: {$price}";
-            })->toArray();
-
-            $lines[] = "- {$g->name} (Nhà phát hành: {$g->publisher}, Nhà phát triển: {$g->developer})";
-            if (!empty($prices)) {
-                $lines[] = "  Giá bán:";
-                $lines = array_merge($lines, $prices);
+                $lines[] = "- {$g->name} (Nhà phát hành: {$g->publisher}, Nhà phát triển: {$g->developer})";
+                if (!empty($prices)) {
+                    $lines[] = "  Giá bán:";
+                    $lines = array_merge($lines, $prices);
+                }
             }
+            return implode("\n", $lines);
         }
 
+        // === Bước 2: Không tìm thấy game cụ thể → trả về toàn bộ danh sách game có sẵn ===
+        // để AI biết cửa hàng đang bán những gì, tránh trả lời "không biết" thiếu context
+        $allGames = Game::with([
+            'versions' => function ($q) {
+                $q->select('id', 'game_id', 'version_name', 'price', 'discount_price');
+            }
+        ])
+            ->where('status', 'Active')
+            ->orderBy('id', 'desc')
+            ->limit(15)
+            ->get();
+
+        if ($allGames->isEmpty()) return '';
+
+        $lines = ["DANH SÁCH GAME ĐANG CÓ TẠI CỬA HÀNG:"];
+        foreach ($allGames as $g) {
+            $cheapest = $g->versions->sortBy('price')->first();
+            $priceText = $cheapest 
+                ? ($cheapest->discount_price 
+                    ? number_format($cheapest->discount_price) . 'đ' 
+                    : number_format($cheapest->price) . 'đ')
+                : 'Chưa có giá';
+            $lines[] = "- {$g->name} - từ {$priceText}";
+        }
+        $lines[] = "";
+        $lines[] = "Lưu ý: Đây là danh sách game có sẵn. Nếu khách hỏi game không có trong danh sách, hãy báo là cửa hàng hiện chưa có game đó.";
         return implode("\n", $lines);
     }
 

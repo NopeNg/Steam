@@ -53,6 +53,12 @@
             border: 1px solid #333 !important;
         }
 
+        [data-bs-theme="dark"] .card-header {
+            background-color: #1e1e1e;
+            color: #fff;
+            border-bottom: 1px solid #333;
+        }
+
         [data-bs-theme="dark"] .table-light {
             background-color: #2c2c2c;
             color: #fff;
@@ -113,6 +119,12 @@
                             <i class="fas fa-plug me-2"></i> Nhà cung cấp Key
                         </a>
                     </li>
+                    <li class="mb-2">
+                        <a href="{{ route('admin.reports.index') }}"
+                            class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
+                            <i class="fas fa-chart-bar me-2"></i> Báo cáo & Thống kê
+                        </a>
+                    </li>
                 </ul>
                 <div class="mt-auto p-3 w-100">
                     <form action="{{ route('admin.logout') }}" method="POST">
@@ -145,6 +157,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    @yield('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const themeToggleBtn = document.getElementById('themeToggle');

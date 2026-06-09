@@ -52,11 +52,50 @@
             </div>
         </div>
 
-        <div class="lg:col-span-3 space-y-6" id="games-list-container">
-            <h2 class="text-white text-lg font-bold border-b border-[#2a475e]/30 pb-2 flex justify-between items-center">
-                <span>Kết Quả Tìm Kiếm</span>
-                <span class="text-xs text-[#8f98a0] font-normal">Tìm thấy {{ $games->total() }} trò chơi</span>
-            </h2>
+        <div class="lg:col-span-3 space-y-6">
+            {{-- ====== BANNER GAME SẮP RA MẮT ====== --}}
+            @if(isset($upcomingGames) && $upcomingGames->count() > 0)
+                <div class="bg-gradient-to-r from-[#1a2236] via-[#1d2942] to-[#1a2236] border border-[#2a475e]/40 rounded-lg p-5 shadow-xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-white text-lg font-bold flex items-center gap-2">
+                            <span class="text-2xl">⏳</span> 
+                            <span>Game Sắp Ra Mắt</span>
+                        </h2>
+                        <a href="{{ url('/games?status=ComingSoon') }}" class="text-xs text-sky-400 hover:text-sky-300 font-semibold uppercase tracking-wide">
+                            Xem tất cả →
+                        </a>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        @foreach($upcomingGames as $up)
+                            <a href="{{ url('/games/' . $up->id) }}" class="group bg-[#0e1621] hover:bg-[#1a2638] rounded-md overflow-hidden border border-[#2a475e]/30 hover:border-sky-400/50 transition-all duration-300 block">
+                                <div class="h-28 overflow-hidden relative">
+                                    <img src="{{ asset($up->cover_image) }}" alt="{{ $up->name }}" class="w-full h-full object-cover group-hover:scale-110 transition-all duration-500 opacity-80 group-hover:opacity-100">
+                                    <div class="absolute top-1.5 right-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded">
+                                        SOON
+                                    </div>
+                                </div>
+                                <div class="p-2">
+                                    <h3 class="text-white text-xs font-semibold truncate group-hover:text-sky-400">{{ $up->name }}</h3>
+                                    <p class="text-[10px] text-amber-400 mt-0.5">
+                                        <i class="far fa-calendar-alt"></i> 
+                                        @if($up->release_date)
+                                            {{ \Carbon\Carbon::parse($up->release_date)->format('d/m/Y') }}
+                                        @else
+                                            Sắp công bố
+                                        @endif
+                                    </p>
+                                </div>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            <div id="games-list-container">
+                <h2 class="text-white text-lg font-bold border-b border-[#2a475e]/30 pb-2 flex justify-between items-center">
+                    <span>Kết Quả Tìm Kiếm</span>
+                    <span class="text-xs text-[#8f98a0] font-normal">Tìm thấy {{ $games->total() }} trò chơi</span>
+                </h2>
 
             @if($games->count() > 0)
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -129,6 +168,7 @@
                     <p class="text-[#8f98a0] text-sm">Không tìm thấy trò chơi nào phù hợp với bộ lọc hiện tại.</p>
                 </div>
             @endif
+            </div>
         </div>
     </div>
 </div>

@@ -48,7 +48,14 @@ class GameController extends Controller implements HasMiddleware
         $games = $query->paginate(9);
         $categories = Category::all();
 
-        return view('Players.games.index', compact('games', 'categories', 'currentStatus'));
+        // Lấy danh sách game sắp ra mắt (ComingSoon) - tối đa 8 game mới nhất để hiển thị ở banner
+        $upcomingGames = Game::with('versions')
+            ->where('status', 'ComingSoon')
+            ->orderBy('release_date', 'asc')
+            ->limit(8)
+            ->get();
+
+        return view('Players.games.index', compact('games', 'categories', 'currentStatus', 'upcomingGames'));
     }
 
     // Trang 3: Chi tiết trò chơi

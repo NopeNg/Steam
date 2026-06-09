@@ -122,6 +122,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/custom', [\App\Http\Controllers\Admins\KeyController::class, 'storeCustom'])->name('custom.store');
         });
 
+        // === REPORTS ===
+        Route::prefix('reports')->name('reports.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admins\ReportController::class, 'index'])->name('index');
+            Route::get('/export', [\App\Http\Controllers\Admins\ReportController::class, 'export'])->name('export');
+        });
+
         Route::prefix('suppliers')->name('suppliers.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admins\SupplierController::class, 'index'])->name('index');
             Route::get('/create', [\App\Http\Controllers\Admins\SupplierController::class, 'create'])->name('create');

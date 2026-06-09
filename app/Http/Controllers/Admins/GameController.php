@@ -37,7 +37,7 @@ class GameController extends Controller
             'developer' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'requirements' => 'nullable|string',
-            'status' => 'required|in:Active,Inactive',
+            'status' => 'required|in:Active,Inactive,ComingSoon,Archived',
             'release_date' => 'nullable|date',
             'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
@@ -50,15 +50,20 @@ class GameController extends Controller
             'gallery_images.*.image' => 'Ảnh gallery phải là file ảnh.',
         ]);
 
-        $game = Game::create($request->only([
-            'name',
-            'publisher',
-            'developer',
-            'description',
-            'requirements',
-            'status',
-            'release_date'
-        ]));
+        $data = $request->only([
+            'name', 'publisher', 'developer', 'description', 'requirements', 'status', 'release_date'
+        ]);
+
+        // TỰ ĐỘNG: Nếu release_date lớn hơn hôm nay → chuyển status thành ComingSoon
+        if (!empty($data['release_date'])) {
+            $releaseDate = \Carbon\Carbon::parse($data['release_date'])->startOfDay();
+            $today = \Carbon\Carbon::today();
+            if ($releaseDate->gt($today)) {
+                $data['status'] = 'ComingSoon';
+            }
+        }
+
+        $game = Game::create($data);
 
         if ($request->hasFile('cover_image')) {
             $path = $request->file('cover_image')->store('games', 'public');
@@ -172,16 +177,21 @@ class GameController extends Controller
 
         $game = Game::findOrFail($id);
 
+        $data = $request->only([
+            'name', 'publisher', 'developer', 'description', 'requirements', 'status', 'release_date'
+        ]);
+
+        // TỰ ĐỘNG: Nếu release_date lớn hơn hôm nay → ép status thành ComingSoon
+        if (!empty($data['release_date'])) {
+            $releaseDate = \Carbon\Carbon::parse($data['release_date'])->startOfDay();
+            $today = \Carbon\Carbon::today();
+            if ($releaseDate->gt($today)) {
+                $data['status'] = 'ComingSoon';
+            }
+        }
+
         // Cập nhật thông tin game cơ bản
-        $game->update($request->only([
-            'name',
-            'publisher',
-            'developer',
-            'description',
-            'requirements',
-            'status',
-            'release_date'
-        ]));
+        $game->update($data);
 
         // 2. LOGIC MỚI: TỰ ĐỘNG QUÉT SẠCH GIỎ HÀNG KHI ADMIN CHUYỂN THÀNH 'Inactive'
         if ($game->status === 'Inactive') {
