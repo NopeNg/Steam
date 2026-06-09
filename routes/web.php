@@ -25,7 +25,7 @@ Route::get('/login', [PlayerAuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [PlayerAuthController::class, 'login']);
 Route::post('/logout', [PlayerAuthController::class, 'logout'])->name('logout');
 
-Route::middleware(['auth.player'])->group(function () {
+Route::middleware(['auth.player','check.banned'])->group(function () {
 // kiểm tra trạng thái
 Route::get('/api/check-status', function() {
         return response()->json(['status' => Auth::guard('player')->user()->status]);

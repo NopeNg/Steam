@@ -17,6 +17,7 @@ public static function middleware(): array
     {
         return [
             new Middleware('auth.player'),
+            new Middleware('check.banned'),
         ];
     }
     // Hàm lấy hoặc tạo giỏ hàng cho người chơi hiện tại

@@ -17,6 +17,7 @@ class SocialController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('auth.player'),
+            new Middleware('check.banned'),
         ];
     }
     // Lấy dữ liệu tổng quan cho trang Social Dashboard
