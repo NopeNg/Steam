@@ -10,9 +10,9 @@ class Promotion extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'name',
+        'campaign_name',
         'discount_percent',
-        'start_date',
-        'end_date'
+        'start_time',
+        'end_time'
     ];
 }

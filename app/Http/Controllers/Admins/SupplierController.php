@@ -7,15 +7,18 @@ use App\Models\SupplierProvider;
 use App\Models\Game;
 use App\Models\GameSupplierMapping;
 use App\Services\SupplierManagerService;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 
 class SupplierController extends Controller
 {
     private SupplierManagerService $supplierManager;
+    private ActivityLogService $activityLog;
 
-    public function __construct(SupplierManagerService $supplierManager)
+    public function __construct(SupplierManagerService $supplierManager, ActivityLogService $activityLog)
     {
         $this->supplierManager = $supplierManager;
+        $this->activityLog = $activityLog;
     }
 
     // ============ SUPPLIER PROVIDERS ============
@@ -81,7 +84,9 @@ class SupplierController extends Controller
             $data['headers'] = json_decode($request->headers, true);
         }
 
-        SupplierProvider::create($data);
+        $supplier = SupplierProvider::create($data);
+
+        $this->activityLog->log('Thêm nhà cung cấp', 'Đã thêm nhà cung cấp "' . $supplier->name . '" (code: ' . $supplier->code . ')');
 
         return redirect()->route('admin.suppliers.index')
             ->with('success', 'Đã thêm nhà cung cấp "' . $request->name . '" thành công!');
@@ -125,6 +130,8 @@ class SupplierController extends Controller
 
         $supplier->update($data);
 
+        $this->activityLog->log('Cập nhật nhà cung cấp', 'Đã cập nhật nhà cung cấp "' . $supplier->name . '" (ID: ' . $supplier->id . ')');
+
         return redirect()->route('admin.suppliers.index')
             ->with('success', 'Đã cập nhật nhà cung cấp "' . $supplier->name . '" thành công!');
     }
@@ -140,9 +147,13 @@ class SupplierController extends Controller
             ]);
         }
 
+        $supplierName = $supplier->name;
         $supplier->delete();
+
+        $this->activityLog->log('Xóa nhà cung cấp', 'Đã xóa nhà cung cấp "' . $supplierName . '" (ID: ' . $id . ')');
+
         return redirect()->route('admin.suppliers.index')
-            ->with('success', 'Đã xóa nhà cung cấp "' . $supplier->name . '" thành công!');
+            ->with('success', 'Đã xóa nhà cung cấp "' . $supplierName . '" thành công!');
     }
 
     public function healthCheck($id)
@@ -160,8 +171,11 @@ class SupplierController extends Controller
     public function toggleStatus($id)
     {
         $supplier = SupplierProvider::findOrFail($id);
+        $oldStatus = $supplier->status;
         $newStatus = $supplier->status === 'Active' ? 'Inactive' : 'Active';
         $supplier->update(['status' => $newStatus]);
+
+        $this->activityLog->log('Thay đổi trạng thái nhà cung cấp', 'Nhà cung cấp "' . $supplier->name . '" (ID: ' . $supplier->id . '): ' . $oldStatus . ' → ' . $newStatus);
 
         return back()->with('success', 'Đã ' . ($newStatus === 'Active' ? 'kích hoạt' : 'vô hiệu hóa') . ' nhà cung cấp "' . $supplier->name . '" thành công!');
     }
@@ -170,11 +184,33 @@ class SupplierController extends Controller
 
     public function mappingIndex(Request $request)
     {
-        $mappings = GameSupplierMapping::with(['game', 'supplierProvider'])
-            ->orderBy('game_id')
-            ->paginate(20);
+        $query = GameSupplierMapping::with(['game', 'supplierProvider']);
 
-        return view('Admins.suppliers.mapping', compact('mappings'));
+        // Filter by game name
+        if ($request->filled('search_game')) {
+            $search = trim($request->search_game);
+            $query->whereHas('game', function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Filter by supplier
+        if ($request->filled('filter_supplier')) {
+            $query->where('supplier_provider_id', $request->filter_supplier);
+        }
+
+        // Filter by status
+        if ($request->filled('filter_status')) {
+            $query->where('status', $request->filter_status);
+        }
+
+        $mappings = $query->orderBy('game_id')
+            ->paginate(20)
+            ->appends($request->query());
+
+        $suppliers = SupplierProvider::where('status', 'Active')->orderBy('name')->get();
+
+        return view('Admins.suppliers.mapping', compact('mappings', 'suppliers'));
     }
 
     public function mappingCreate()
@@ -250,6 +286,9 @@ class SupplierController extends Controller
         if ($skipped > 0) $msg .= " (bỏ qua {$skipped} đã tồn tại)";
         $msg .= '.';
 
+        $supplier = SupplierProvider::find($supplierId);
+        $this->activityLog->log('Tạo mapping game-supplier', 'Đã tạo ' . $created . ' liên kết cho supplier "' . ($supplier->name ?? $supplierId) . '"' . ($skipped > 0 ? ' (bỏ qua ' . $skipped . ' đã tồn tại)' : ''));
+
         return redirect()->route('admin.suppliers.mapping')
             ->with('success', $msg);
     }
@@ -286,6 +325,8 @@ class SupplierController extends Controller
             'game_id', 'supplier_provider_id', 'supplier_game_id', 'status'
         ]));
 
+        $this->activityLog->log('Cập nhật mapping game-supplier', 'Đã cập nhật mapping (ID: ' . $mapping->id . ')');
+
         return redirect()->route('admin.suppliers.mapping')
             ->with('success', 'Đã cập nhật liên kết thành công!');
     }
@@ -294,7 +335,62 @@ class SupplierController extends Controller
     {
         $mapping = GameSupplierMapping::findOrFail($id);
         $mapping->delete();
+
+        $this->activityLog->log('Xóa mapping game-supplier', 'Đã xóa mapping (ID: ' . $id . ')');
+
         return redirect()->route('admin.suppliers.mapping')
             ->with('success', 'Đã xóa liên kết thành công!');
+    }
+
+    /**
+     * Bulk update: cập nhật supplier và/hoặc status cho nhiều mapping cùng lúc
+     */
+    public function mappingBulkUpdate(Request $request)
+    {
+        $request->validate([
+            'mapping_ids' => 'required|array|min:1',
+            'mapping_ids.*' => 'exists:game_supplier_mappings,id',
+            'bulk_supplier_id' => 'nullable|exists:supplier_providers,id',
+            'bulk_status' => 'nullable|in:Active,Inactive',
+        ], [
+            'mapping_ids.required' => 'Vui lòng chọn ít nhất 1 liên kết.',
+            'mapping_ids.min' => 'Vui lòng chọn ít nhất 1 liên kết.',
+        ]);
+
+        $ids = $request->mapping_ids;
+        $updated = 0;
+
+        foreach ($ids as $id) {
+            $mapping = GameSupplierMapping::find($id);
+            if (!$mapping) continue;
+
+            $updateData = [];
+
+            if ($request->filled('bulk_supplier_id')) {
+                // Kiểm tra không trùng mapping
+                $exists = GameSupplierMapping::where('game_id', $mapping->game_id)
+                    ->where('supplier_provider_id', $request->bulk_supplier_id)
+                    ->where('id', '!=', $id)
+                    ->exists();
+
+                if (!$exists) {
+                    $updateData['supplier_provider_id'] = $request->bulk_supplier_id;
+                }
+            }
+
+            if ($request->filled('bulk_status')) {
+                $updateData['status'] = $request->bulk_status;
+            }
+
+            if (!empty($updateData)) {
+                $mapping->update($updateData);
+                $updated++;
+            }
+        }
+
+        $this->activityLog->log('Cập nhật hàng loạt mapping', 'Đã cập nhật ' . $updated . '/' . count($ids) . ' mapping game-supplier');
+
+        return redirect()->route('admin.suppliers.mapping')
+            ->with('success', "Đã cập nhật {$updated}/" . count($ids) . " liên kết thành công!");
     }
 }

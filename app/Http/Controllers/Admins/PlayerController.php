@@ -3,11 +3,19 @@
 namespace App\Http\Controllers\Admins;
 
 use App\Http\Controllers\Controller;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use App\Models\Player;
 
 class PlayerController extends Controller
 {
+    private ActivityLogService $activityLog;
+
+    public function __construct(ActivityLogService $activityLog)
+    {
+        $this->activityLog = $activityLog;
+    }
+
     public function index(Request $request)
     {
         $query = Player::query();
@@ -28,8 +36,11 @@ class PlayerController extends Controller
     public function toggleStatus($id)
     {
         $player = Player::findOrFail($id);
+        $oldStatus = $player->status;
         $newStatus = $player->status === 'Active' ? 'Banned' : 'Active';
         $player->update(['status' => $newStatus]);
+
+        $this->activityLog->log('Thay đổi trạng thái người dùng', 'Người dùng "' . $player->username . '" (ID: ' . $player->id . '): ' . $oldStatus . ' → ' . $newStatus);
 
         return redirect()->back()->with('success', 'Đã cập nhật trạng thái tài khoản thành công!');
     }

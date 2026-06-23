@@ -12,12 +12,18 @@ class Order extends Model
 
     protected $fillable = [
         'player_id',
+        'friend_id',
         'handled_by_admin',
         'total_amount',
         'order_type',
         'status',
         'payment_method'
     ];
+
+    public function friend()
+    {
+        return $this->belongsTo(Player::class, 'friend_id');
+    }
 
     protected $casts = [
         'created_at' => 'datetime',

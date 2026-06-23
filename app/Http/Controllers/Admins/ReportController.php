@@ -141,16 +141,50 @@ class ReportController extends Controller
         $returningCustomerOrders = $completedOrders - $newCustomerOrders;
         $newCustomerCount = $completedOrders - $newCustomerOrders;
 
-        // ==================== 3. BÁO CÁO GIỎ HÀNG & CHUYỂN ĐỔI ====================
+        // ==================== 3. BÁO CÁO GIỎ HÀNG ====================
         $totalCartItems = \App\Models\CartItem::count();
-        // Giả sử tỷ lệ bỏ rơi giỏ = (items trong giỏ / total orders trong kỳ) - rough estimate
-        $cartAbandonmentRate = $totalOrders > 0 ? round(($totalCartItems / max($totalOrders, 1)) * 100, 1) : 0;
+
+        // Top game được thêm vào giỏ hàng nhiều nhất
+        $topCartGames = \App\Models\CartItem::select(
+                'game_versions.game_id',
+                DB::raw('COUNT(cart_items.id) as total_added'),
+                DB::raw('SUM(cart_items.quantity) as total_quantity')
+            )
+            ->join('game_versions', 'cart_items.game_version_id', '=', 'game_versions.id')
+            ->whereBetween('cart_items.added_at', [$start, $end])
+            ->groupBy('game_versions.game_id')
+            ->orderByDesc('total_added')
+            ->take(10)
+            ->get()
+            ->map(function ($item) {
+                $game = \App\Models\Game::find($item->game_id);
+                $item->game_name = $game ? $game->name : 'Không xác định';
+                return $item;
+            });
+
+        // Thể loại game được quan tâm trong giỏ hàng
+        $topCartCategories = \App\Models\CartItem::select(
+                'categories.id',
+                'categories.category_name',
+                DB::raw('COUNT(cart_items.id) as total_added'),
+                DB::raw('SUM(cart_items.quantity) as total_quantity')
+            )
+            ->join('game_versions', 'cart_items.game_version_id', '=', 'game_versions.id')
+            ->join('game_categories', 'game_versions.game_id', '=', 'game_categories.game_id')
+            ->join('categories', 'game_categories.category_id', '=', 'categories.id')
+            ->whereBetween('cart_items.added_at', [$start, $end])
+            ->groupBy('categories.id', 'categories.category_name')
+            ->orderByDesc('total_added')
+            ->take(10)
+            ->get();
 
         // ==================== 4. BÁO CÁO KHO HÀNG (KEY) ====================
         $totalKeys = GameKey::count();
-        $availableKeys = GameKey::where('status', 'Available')->count();
         $soldKeys = GameKey::where('status', 'Sold')->count();
-        $giveawayKeys = GameKey::where('status', 'Giveaway')->count();
+        $errorKeys = GameKey::where('status', '!=', 'Sold')
+            ->where('status', '!=', 'Giveaway')
+            ->where('status', '!=', 'Available')
+            ->count();
 
         $linkedGames = Game::has('gameMappings')->get();
         $unlinkedGames = Game::doesntHave('gameMappings')->get();
@@ -166,8 +200,9 @@ class ReportController extends Controller
             'newUsersCount', 'chartNewUsersLabels', 'chartNewUsersData',
             'topCustomers',
             'newCustomerOrders', 'returningCustomerOrders', 'newCustomerCount',
-            'totalCartItems', 'cartAbandonmentRate',
-            'totalKeys', 'availableKeys', 'soldKeys', 'giveawayKeys',
+            'totalCartItems',
+            'topCartGames', 'topCartCategories',
+            'totalKeys', 'soldKeys', 'errorKeys',
             'linkedGames', 'unlinkedGames'
         ));
     }

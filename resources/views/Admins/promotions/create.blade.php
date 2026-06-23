@@ -36,6 +36,46 @@
                     </div>
                 </div>
 
+                <div class="mt-4">
+                    <label class="form-label fw-bold">Chọn phiên bản game áp dụng <span class="text-danger">*</span></label>
+                    <div class="card border">
+                        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                            @forelse($games as $game)
+                                <div class="mb-3">
+                                    <div class="fw-bold text-primary mb-2">
+                                        <i class="fas fa-gamepad me-1"></i> {{ $game->name }}
+                                    </div>
+                                    <div class="row ps-3">
+                                        @forelse($game->versions as $version)
+                                            <div class="col-md-4 mb-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" 
+                                                           name="game_version_ids[]" 
+                                                           value="{{ $version->id }}" 
+                                                           id="version_{{ $version->id }}">
+                                                    <label class="form-check-label small" for="version_{{ $version->id }}">
+                                                        {{ $version->version_name }} 
+                                                        <span class="text-muted">({{ number_format($version->price) }}đ)</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        @empty
+                                            <div class="col-12">
+                                                <span class="text-muted small">Chưa có phiên bản nào</span>
+                                            </div>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            @empty
+                                <p class="text-muted mb-0">Không có game nào trong hệ thống. Vui lòng thêm game trước.</p>
+                            @endforelse
+                        </div>
+                    </div>
+                    @error('game_version_ids')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 <div class="d-flex justify-content-end gap-2 mt-4">
                     <a href="{{ route('admin.promotions.index') }}" class="btn btn-secondary px-4">Hủy bỏ</a>
                     <button type="submit" class="btn btn-success px-5 fw-bold"><i class="fas fa-save me-1"></i> Kích hoạt chiến dịch</button>

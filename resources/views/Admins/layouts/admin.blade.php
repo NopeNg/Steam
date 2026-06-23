@@ -125,6 +125,12 @@
                             <i class="fas fa-chart-bar me-2"></i> Báo cáo & Thống kê
                         </a>
                     </li>
+                    <li class="mb-2">
+                        <a href="{{ route('admin.activity-logs.index') }}"
+                            class="{{ request()->routeIs('admin.activity-logs.*') ? 'active' : '' }}">
+                            <i class="fas fa-history me-2"></i> Lịch sử hoạt động
+                        </a>
+                    </li>
                 </ul>
                 <div class="mt-auto p-3 w-100">
                     <form action="{{ route('admin.logout') }}" method="POST">

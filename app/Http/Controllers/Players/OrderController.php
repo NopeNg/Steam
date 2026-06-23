@@ -46,6 +46,16 @@ class OrderController extends Controller implements HasMiddleware
 
     // Bước 1: Khởi tạo đơn hàng nháp (Pending), kiểm tra sở hữu, xóa giỏ hàng
     public function process(Request $request) {
+        $request->validate([
+            'order_type' => 'required|in:Personal,Gift,Other',
+            'friend_id' => 'nullable|exists:players,id',
+            'payment_method' => 'nullable|string|max:50',
+        ], [
+            'order_type.required' => 'Vui lòng chọn loại đơn hàng.',
+            'order_type.in' => 'Loại đơn hàng không hợp lệ.',
+            'friend_id.exists' => 'Bạn bè không hợp lệ.',
+        ]);
+
         $cartId = $this->getCartId();
         $cartItems = CartItem::with('version.game')->where('cart_id', $cartId)->get();
         
@@ -55,6 +65,12 @@ class OrderController extends Controller implements HasMiddleware
         $playerId = Auth::guard('player')->id();
 
         $order = DB::transaction(function () use ($request, $cartItems, $total, $cartId, $playerId) {
+
+            // Nếu Gift: kiểm tra đã là bạn bè chưa
+            if ($request->order_type === 'Gift' && !$request->friend_id) {
+                throw new \Exception('Vui lòng chọn bạn bè để tặng quà.');
+            }
+
             $newOrder = Order::create([
                 'player_id' => $playerId,
                 'total_amount' => $total,
@@ -82,12 +98,17 @@ class OrderController extends Controller implements HasMiddleware
                     $hasAnyPersonalGame = true;
                 }
 
-                OrderItem::create([
+                $orderItem = OrderItem::create([
                     'order_id' => $newOrder->id,
                     'game_version_id' => $item->game_version_id,
                     'quantity' => $item->quantity,
                     'price_at_purchase' => $item->version->discount_price ?? $item->version->price
                 ]);
+
+                // Nếu là Gift → tạo Gift record ngay đợi key về sẽ gán
+                if ($request->order_type === 'Gift') {
+                    // Gift sẽ được tạo sau khi có key ở executeOrder
+                }
             }
             
             CartItem::where('cart_id', $cartId)->delete();
@@ -128,63 +149,95 @@ class OrderController extends Controller implements HasMiddleware
             return response()->json(['redirect_url' => route('cart.index')]);
         }
 
-        $hasApiError = false;
-        $lastSupplierName = null;
-        $lastSupplierCode = null;
+        // 🔥 Dùng transaction để rollback nếu có lỗi
+        try {
+            return DB::transaction(function () use ($order, $playerId, $playerEmail) {
+                $hasApiError = false;
+                $lastError = null;
+                $createdGameKeyIds = [];
+                $createdLibraryIds = [];
 
-        foreach ($order->orderItems as $item) {
-            $gameId = $item->version->game_id;
-            $quantity = $item->quantity;
+                foreach ($order->orderItems as $item) {
+                    $gameId = $item->version->game_id;
+                    $quantity = $item->quantity;
+                    
+                    // Gọi Supplier lấy key
+                    $result = $this->supplierManager->purchaseKeys($gameId, $quantity, $playerEmail);
+
+                    if ($result['success']) {
+                        $lastSupplierCode = $result['supplier_code'] ?? 'UNKNOWN';
+
+                        $gameKeyIds = [];
+                        foreach ($result['keys'] as $keyCode) {
+                            $gameKey = GameKey::create([
+                                'order_item_id' => $item->id,
+                                'key_code' => $keyCode,
+                                'status' => 'Delivered',
+                                'fetched_at' => now(),
+                                'supplier_transaction_id' => $result['transaction_id'],
+                                'supplier_code' => $lastSupplierCode,
+                            ]);
+                            $gameKeyIds[] = $gameKey->id;
+                            $createdGameKeyIds[] = $gameKey->id;
+                        }
+
+                        // Nếu là Gift order → tạo Gift record (không tạo Library cho người mua)
+                        if ($order->order_type === 'Gift' && $order->friend_id && !empty($gameKeyIds)) {
+                            $gift = \App\Models\Gift::create([
+                                'sender_id' => $playerId,
+                                'receiver_id' => $order->friend_id,
+                                'game_key_id' => $gameKeyIds[0],
+                                'status' => 'Sent'
+                            ]);
+                        }
+                        // Nếu là Personal/Other → tạo Library cho người mua
+                        elseif (!empty($gameKeyIds)) {
+                            $lib = Library::create([
+                                'player_id' => $playerId,
+                                'game_key_id' => $gameKeyIds[0],
+                                'game_id' => $gameId,
+                                'key_code' => $result['keys'][0] ?? '',
+                                'version_id' => $item->game_version_id,
+                                'order_item_id' => $item->id,
+                            ]);
+                            $createdLibraryIds[] = $lib->id;
+                        }
+                    } else {
+                        $hasApiError = true;
+                        $lastError = $result['error'];
+                        Log::error('[Order] All suppliers failed for order #' . $order->id, [
+                            'game_id' => $gameId,
+                            'error' => $result['error'],
+                            'error_code' => $result['error_code'] ?? '',
+                        ]);
+                        
+                        // 🔥 Nếu có lỗi, xóa toàn bộ GameKey và Library đã tạo trước đó để rollback
+                        if (!empty($createdGameKeyIds)) {
+                            GameKey::whereIn('id', $createdGameKeyIds)->delete();
+                        }
+                        if (!empty($createdLibraryIds)) {
+                            Library::whereIn('id', $createdLibraryIds)->delete();
+                        }
+                        
+                        // Throw exception để rollback toàn bộ transaction
+                        throw new \Exception('Supplier failed: ' . ($lastError ?? 'Unknown error'));
+                    }
+                }
+
+                // Tất cả đều thành công
+                $order->update(['status' => 'Completed']);
+                
+                session()->flash('success', 'Thanh toán thành công! Trò chơi đã được thêm vào thư viện.');
+                return response()->json(['redirect_url' => route('library.index')]);
+            });
+        } catch (\Exception $e) {
+            Log::error('[Order] executeOrder failed for order #' . $order->id . ': ' . $e->getMessage());
             
-            // Gọi Supplier lấy key
-            $result = $this->supplierManager->purchaseKeys($gameId, $quantity, $playerEmail);
-
-            if ($result['success']) {
-                $lastSupplierName = $result['supplier_name'] ?? 'Unknown';
-                $lastSupplierCode = $result['supplier_code'] ?? 'UNKNOWN';
-
-                $gameKeyIds = [];
-                foreach ($result['keys'] as $keyCode) {
-                    $gameKey = GameKey::create([
-                        'order_item_id' => $item->id,
-                        'key_code' => $keyCode,
-                        'status' => 'Pending',
-                        'fetched_at' => now(),
-                        'supplier_transaction_id' => $result['transaction_id'],
-                        'supplier_code' => $lastSupplierCode,
-                    ]);
-                    $gameKeyIds[] = $gameKey->id;
-                }
-
-                // Tạo Library chỉ với key thực (không null)
-                if (!empty($gameKeyIds)) {
-                    Library::create([
-                        'player_id' => $playerId,
-                        'game_key_id' => $gameKeyIds[0],
-                        'game_id' => $gameId,
-                        'key_code' => $result['keys'][0] ?? '',
-                        'version_id' => $item->game_version_id,
-                        'order_item_id' => $item->id,
-                    ]);
-                }
-            } else {
-                $hasApiError = true;
-                Log::error('[Order] All suppliers failed for order #' . $order->id, [
-                    'game_id' => $gameId,
-                    'error' => $result['error'],
-                    'error_code' => $result['error_code'] ?? '',
-                ]);
-            }
-        }
-
-        $order->update(['status' => $hasApiError ? 'API_Error' : 'Completed']);
-        
-        if ($order->status === 'Completed') {
-            session()->flash('success', 'Thanh toán thành công! Trò chơi đã được thêm vào thư viện.');
-            return response()->json(['redirect_url' => route('library.index')]);
-        } else {
+            // Đánh dấu đơn hàng thất bại
+            $order->update(['status' => 'API_Error']);
+            
             session()->flash('error', 'Có lỗi xảy ra trong quá trình lấy Key từ nhà cung cấp. Vui lòng liên hệ Admin!');
-            return response()->json(['redirect_url' => route('cart.index')]);
+            return response()->json(['redirect_url' => route('orders.waiting', ['order_id' => $order->id])]);
         }
     }
 

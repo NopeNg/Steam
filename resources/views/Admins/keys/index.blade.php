@@ -7,9 +7,9 @@
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
         <h1 class="h3 fw-bold">Quản lý Kho Key & Đối soát API</h1>
         <div class="btn-toolbar mb-2 mb-md-0">
-            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createKeyModal">
+            <a href="{{ route('admin.keys.custom.create') }}" class="btn btn-sm btn-primary">
                 <i class="fas fa-plus me-1"></i> Tạo Key Giveaway phát quà
-            </button>
+            </a>
         </div>
     </div>
 

@@ -37,6 +37,15 @@ public static function middleware(): array
 
     // Thêm game vào giỏ hàng
     public function add($versionId) {
+        // Kiểm tra game version tồn tại và game đang Active
+        $version = \App\Models\GameVersion::with('game')->find($versionId);
+        if (!$version) {
+            return redirect()->back()->with('error', 'Phiên bản game không tồn tại.');
+        }
+        if (!$version->game || $version->game->status !== 'Active') {
+            return redirect()->back()->with('error', 'Game này hiện không khả dụng để mua.');
+        }
+
         $cartId = $this->getCartId();
         $item = CartItem::where('cart_id', $cartId)
             ->where('game_version_id', $versionId)

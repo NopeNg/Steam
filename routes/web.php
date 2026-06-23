@@ -119,6 +119,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::prefix('keys')->name('keys.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admins\KeyController::class, 'index'])->name('index');
+            Route::get('/create', [\App\Http\Controllers\Admins\KeyController::class, 'create'])->name('custom.create');
             Route::post('/custom', [\App\Http\Controllers\Admins\KeyController::class, 'storeCustom'])->name('custom.store');
         });
 
@@ -126,6 +127,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('reports')->name('reports.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admins\ReportController::class, 'index'])->name('index');
             Route::get('/export', [\App\Http\Controllers\Admins\ReportController::class, 'export'])->name('export');
+        });
+
+        // === ACTIVITY LOGS ===
+        Route::prefix('activity-logs')->name('activity-logs.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admins\ActivityLogController::class, 'index'])->name('index');
         });
 
         Route::prefix('suppliers')->name('suppliers.')->group(function () {
@@ -144,6 +150,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/mapping/{id}/edit', [\App\Http\Controllers\Admins\SupplierController::class, 'mappingEdit'])->name('mapping.edit');
             Route::put('/mapping/{id}', [\App\Http\Controllers\Admins\SupplierController::class, 'mappingUpdate'])->name('mapping.update');
             Route::delete('/mapping/{id}', [\App\Http\Controllers\Admins\SupplierController::class, 'mappingDestroy'])->name('mapping.destroy');
+            Route::post('/mapping/bulk-update', [\App\Http\Controllers\Admins\SupplierController::class, 'mappingBulkUpdate'])->name('mapping.bulk-update');
         });
 
     }); // End middleware admin

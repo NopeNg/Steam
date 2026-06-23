@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-    
+     
     <form action="{{ route('orders.process') }}" method="POST" class="md:col-span-2 bg-[#171a21] p-6 rounded-sm border border-[#2a475e]/20 text-xs space-y-6 shadow-2xl">
         @csrf
         <h2 class="text-white text-base font-bold uppercase tracking-wider border-b border-[#2a475e]/30 pb-3 flex items-center justify-between">
@@ -16,7 +16,7 @@
             <label class="text-white font-bold block text-sm">1. Chọn hình thức mua hàng:</label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label class="flex items-center space-x-3 p-3 bg-[#101822] border border-[#2a475e]/30 rounded-sm cursor-pointer hover:border-sky-500/50 transition-all group">
-                    <input type="radio" name="order_type" value="Personal" checked class="w-4 h-4 accent-sky-500"> 
+                    <input type="radio" name="order_type" value="Personal" checked class="w-4 h-4 accent-sky-500" onchange="toggleGiftFriend(false)"> 
                     <div>
                         <span class="text-white font-semibold block">Mua cho bản thân</span>
                         <span class="text-[10px] text-[#556772]">Game sẽ tự động thêm trực tiếp vào thư viện của bạn.</span>
@@ -24,29 +24,34 @@
                 </label>
                 
                 <label class="flex items-center space-x-3 p-3 bg-[#101822] border border-[#2a475e]/30 rounded-sm cursor-pointer hover:border-sky-500/50 transition-all group">
-                    <input type="radio" name="order_type" value="Gift" class="w-4 h-4 accent-sky-500"> 
+                    <input type="radio" name="order_type" value="Gift" class="w-4 h-4 accent-sky-500" onchange="toggleGiftFriend(true)"> 
                     <div>
                         <span class="text-white font-semibold block">Mua làm quà tặng</span>
-                        <span class="text-[10px] text-[#556772]">Tạo gift-code gửi tặng cho bạn bè kích hoạt.</span>
+                        <span class="text-[10px] text-[#556772]">Gửi quà tặng key game cho bạn bè.</span>
                     </div>
                 </label>
-                <!-- <label class="flex items-center space-x-3 p-3 bg-[#101822] border border-[#2a475e]/30 rounded-sm cursor-pointer hover:border-sky-500/50 transition-all group">
-        <input type="radio" name="order_type" value="Other" class="w-4 h-4 accent-sky-500"> 
-        <div>
-            <span class="text-white font-semibold block text-xs">Khác</span>
-            <span class="text-[9px] text-[#556772]">Mục đích khác</span>
-        </div>
-    </label> -->
+            </div>
+
+            {{-- Dropdown chọn bạn bè khi mua dạng tặng --}}
+            <div id="gift-friend-select" class="hidden space-y-2">
+                <label class="text-white font-bold block text-sm">2. Chọn bạn bè để tặng:</label>
+                <select name="friend_id" id="friend_id" class="w-full bg-[#101822] border border-[#2a475e]/60 text-white p-3 rounded-sm appearance-none focus:outline-none focus:border-sky-400 font-medium transition-all">
+                    <option value="">-- Chọn bạn bè --</option>
+                    @foreach($friends as $friend)
+                        <option value="{{ $friend->id }}">{{ $friend->username }} ({{ $friend->email }})</option>
+                    @endforeach
+                </select>
+                @error('friend_id')
+                    <p class="text-red-400 text-[10px]">{{ $message }}</p>
+                @enderror
             </div>
         </div>
 
-        <div class="space-y-3">
-            <label class="text-white font-bold block text-sm">2. Phương thức thanh toán:</label>
+        <div class="space-y-3" id="payment-method-section">
+            <label class="text-white font-bold block text-sm" id="payment-label">Phương thức thanh toán:</label>
             <div class="relative">
                 <select name="payment_method" class="w-full bg-[#101822] border border-[#2a475e]/60 text-white p-3 rounded-sm appearance-none focus:outline-none focus:border-sky-400 font-medium transition-all">
                     <option value="VNPAY" selected>Cổng thanh toán điện tử VNPAY (QR Code ngân hàng / ATM)</option>
-                    <!-- <option value="MoMo">Ví điện tử MoMo (Thanh toán tự động)</option>
-                    <option value="Bank_Transfer">Chuyển khoản liên ngân hàng 24/7</option> -->
                 </select>
                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#8f98a0]">
                     <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
@@ -58,11 +63,11 @@
             ⚡ <strong>Lưu ý:</strong> Sau khi click nút thanh toán, hệ thống sẽ thực hiện kết nối xử lý bảo mật. Bạn vui lòng đợi trong giây lát và tuyệt đối không tải lại trang khi tiến trình đang diễn ra.
         </div>
 
-    <button type="submit" 
+    <button type="submit" id="submit-btn"
         class="w-full bg-[#6fa127] hover:bg-[#82bd2d] text-[#e5f4d2] py-3 rounded-[2px] text-sm font-bold border border-black shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-all duration-200 tracking-wider"
         style="text-shadow: 1px 1px 0px rgba(0,0,0,0.6);">
-    Xác nhận & Thanh toán đơn hàng
-</button>
+        Xác nhận & Thanh toán đơn hàng
+    </button>
     </form>
 
     <div class="space-y-4">
@@ -110,3 +115,22 @@
 
 </div>
 @endsection
+
+<script>
+function toggleGiftFriend(isGift) {
+    const giftSelect = document.getElementById('gift-friend-select');
+    const paymentSection = document.getElementById('payment-method-section');
+    const paymentLabel = document.getElementById('payment-label');
+    const submitBtn = document.getElementById('submit-btn');
+
+    if (isGift) {
+        giftSelect.classList.remove('hidden');
+        paymentSection.classList.add('hidden');
+        submitBtn.textContent = 'Xác nhận & Thanh toán đơn hàng';
+    } else {
+        giftSelect.classList.add('hidden');
+        paymentSection.classList.remove('hidden');
+        submitBtn.textContent = 'Xác nhận & Thanh toán đơn hàng';
+    }
+}
+</script>

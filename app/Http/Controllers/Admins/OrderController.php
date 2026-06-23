@@ -3,11 +3,19 @@
 namespace App\Http\Controllers\Admins;
 
 use App\Http\Controllers\Controller;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use App\Models\Order;
 
 class OrderController extends Controller
 {
+    private ActivityLogService $activityLog;
+
+    public function __construct(ActivityLogService $activityLog)
+    {
+        $this->activityLog = $activityLog;
+    }
+
     public function index(Request $request)
     {
         $query = Order::with('player');
@@ -49,7 +57,11 @@ class OrderController extends Controller
         ]);
 
         $order = Order::findOrFail($id);
+        $oldStatus = $order->getOriginal('status');
         $order->update(['status' => $request->status]);
+
+        $this->activityLog->log('Cập nhật trạng thái đơn hàng', 'Đơn hàng #' . $order->id . ': ' . $oldStatus . ' → ' . $request->status);
+
         return redirect()->back()->with('success', 'Đã cập nhật trạng thái đơn hàng thành công!');
     }
 
@@ -89,6 +101,8 @@ class OrderController extends Controller
                 'status' => 'success'
             ]);
         });
+
+        $this->activityLog->log('Hoàn tiền đơn hàng', 'Đã hoàn ' . number_format($order->total_amount) . ' VNĐ cho đơn hàng #' . $order->id . ' (người chơi ID: ' . $order->player_id . ')');
 
         return back()->with('success', 'Đã hoàn tiền thành công vào ví người chơi và hủy đơn hàng.');
     }
@@ -147,6 +161,8 @@ class OrderController extends Controller
 
             $order->update(['status' => 'Completed']);
         });
+
+        $this->activityLog->log('Cấp key thủ công', 'Đã cấp key thủ công cho đơn hàng #' . $order->id . ' (người chơi ID: ' . $order->player_id . ')');
 
         return back()->with('success', 'Đã cấp Key thủ công và hoàn tất đơn hàng.');
     }

@@ -4,206 +4,212 @@
     $version   = $orderItem ? $orderItem->version : null;
     $game      = $version ? $version->game : null;
     $order     = $orderItem ? $orderItem->order : null;
-    $type      = $order ? $order->order_type : 'Personal';
-    
-    // Logic mới: Kiểm tra game đã từng được Active trong tài khoản chưa
-    $gameId    = $version ? $version->game_id : null;
+    $type      = $order ? $order->order_type : 'Giveaway';
+
+    // Fallback: nếu Library có game/version riêng (cho Giveaway)
+    if (!$game && $item->game) {
+        $game = $item->game;
+    }
+    if (!$version && $item->gameVersion) {
+        $version = $item->gameVersion;
+    }
+    // Fallback từ gameVersionId
+    if (!$game && $gameKey && $gameKey->game_version_id) {
+        $v = \App\Models\GameVersion::with('game')->find($gameKey->game_version_id);
+        $version = $v;
+        $game = $v ? $v->game : null;
+    }
+
+    $gameId    = $game ? $game->id : null;
     $isOwned   = ($gameId && isset($activatedGameIds) && in_array($gameId, $activatedGameIds));
     $isActivated = ($gameKey && $gameKey->status === 'Activated');
     $isPending = ($gameKey && $gameKey->status === 'Pending');
+    $isGiveaway = ($gameKey && $gameKey->status === 'Giveaway');
+    $versionName = $version ? $version->version_name : ($item->version_id ? 'Version #'.$item->version_id : 'N/A');
+    $purchasedAt = $item->purchased_at ? \Carbon\Carbon::parse($item->purchased_at)->format('d/m/Y H:i') : ($order ? $order->created_at->format('d/m/Y H:i') : 'N/A');
 @endphp
 
 @if($game)
-    <div class="bg-[#171a21] border border-gray-800 p-3 rounded-sm text-xs flex flex-col justify-between transition-all hover:border-gray-600">
-        <div>
-            <img src="{{ $game->cover_image ?? 'https://via.placeholder.com/300x150' }}" 
-                 class="w-full h-28 object-cover rounded-xs" alt="{{ $game->name }}">
-            
-            <div class="mt-2 flex items-center justify-between">
-                <h3 class="text-white font-bold text-sm truncate">{{ $game->name }}</h3>
-                <span class="text-[9px] px-1.5 py-0.5 rounded border 
-                    {{ $type === 'Gift' ? 'bg-blue-600/20 text-blue-400 border-blue-600/30' : 
-                       ($type === 'Other' ? 'bg-amber-600/20 text-amber-400 border-amber-600/30' : 
-                       'bg-emerald-600/20 text-emerald-400 border-emerald-600/30') }}">
-                    {{ strtoupper($type) }}
-                </span>
-            </div>
-            @if($version)
-                <p class="text-[10px] text-sky-400">{{ $version->version_name }}</p>
-            @endif
-        </div>
+<div class="bg-[#171a21] border border-gray-800 rounded-sm overflow-hidden transition-all hover:border-gray-600 group cursor-pointer" onclick="openKeyModal('{{ $gameKey->key_code }}', '{{ $gameKey->id }}')">
+    {{-- Cover ảnh trên --}}
+    <div class="h-36 overflow-hidden relative">
+        <img src="{{ $game->cover_image ?? 'https://via.placeholder.com/300x150' }}" 
+             class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500" alt="{{ $game->name }}">
+        {{-- Badge góc trên phải --}}
+        <span class="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded border font-bold
+            {{ $type === 'Gift' ? 'bg-blue-600/80 text-white border-blue-600' : 
+               ($type === 'Giveaway' ? 'bg-purple-600/80 text-white border-purple-600' :
+               ($type === 'Other' ? 'bg-amber-600/80 text-white border-amber-600' : 
+               'bg-emerald-600/80 text-white border-emerald-600')) }}">
+            {{ $type === 'Giveaway' ? 'SỰ KIỆN' : strtoupper($type) }}
+        </span>
+    </div>
 
-        <div class="bg-[#101822] p-2 rounded-xs flex justify-between items-center mt-3">
-            <span class="text-gray-500">Trạng thái:</span>
-            
+    {{-- Thông tin bên dưới --}}
+    <div class="p-3 text-xs space-y-1.5">
+        <h3 class="text-white font-bold text-sm truncate group-hover:text-sky-400 transition-colors">
+            {{ $game->name }}
+        </h3>
+        <p class="text-[10px] text-sky-400">{{ $versionName }}</p>
+        <p class="text-[10px] text-gray-500">Ngày mua: {{ $purchasedAt }}</p>
+        
+        <div class="border-t border-gray-800 pt-2 flex items-center justify-between">
+            {{-- Trạng thái --}}
             @if($isActivated)
                 <span class="text-green-500 font-bold text-[11px]">✓ ĐÃ KÍCH HOẠT</span>
-            @elseif($isPending)
-                <div class="flex items-center space-x-2">
-                    @if(!$isOwned)
-                        {{-- Nút KÍCH HOẠT mở modal hướng dẫn --}}
-                        <button onclick="openActivateModal('{{ $gameKey->key_code }}', '{{ $game->name }}')" 
-                                class="bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 font-bold rounded-xs uppercase text-[10px] transition-colors">
-                            KÍCH HOẠT
-                        </button>
-                    @else
-                        <span class="text-[9px] text-orange-500 font-bold uppercase italic">Đã sở hữu</span>
-                    @endif
-
-                    {{-- Nút XEM KEY mở modal --}}
-                    <button onclick="openKeyModal('{{ $gameKey->key_code }}', '{{ $gameKey->id }}')" class="bg-sky-600 hover:bg-sky-500 text-white px-2 py-1 font-bold rounded-xs uppercase text-[10px] transition-colors">
-                        XEM KEY
-                    </button>
-                </div>
+            @elseif($isPending || $isGiveaway)
+                <span class="text-amber-400 font-bold text-[11px]">⏳ CHỜ KÍCH HOẠT</span>
+            @elseif($gameKey->status === 'Revoked')
+                <span class="text-red-500 font-bold text-[11px]">✕ ĐÃ THU HỒI</span>
             @else
                 <span class="text-gray-400 text-[11px]">{{ $gameKey->status ?? 'Unknown' }}</span>
             @endif
-        </div>
-    </div>
 
-    {{-- Modal Xem Key --}}
-    <div id="key-modal-{{ $gameKey->id }}" class="fixed inset-0 flex items-center justify-center z-50 hidden">
-        <div class="absolute inset-0 bg-black/70" onclick="closeKeyModal('{{ $gameKey->id }}')"></div>
-        <div class="bg-[#1b2838] border border-sky-500 p-6 rounded-sm shadow-2xl max-w-sm w-full mx-4 relative z-10">
-            <div class="text-center">
-                <h3 class="text-sky-400 font-bold text-sm mb-3">Mã Kích Hoạt</h3>
-                <div class="bg-black/50 border border-gray-700 p-3 rounded mb-3">
-                    <code id="modal-key-{{ $gameKey->id }}" class="text-white font-mono text-xs block bg-gray-900 p-2 rounded cursor-text select-all break-all">
-                        {{ $gameKey->key_code }}
-                    </code>
-                </div>
-                <button onclick="copyKeyFromModal('{{ $gameKey->key_code }}', '{{ $gameKey->id }}')" 
-                        class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-1.5 rounded text-xs font-bold transition-colors">
-                    <i class="fas fa-copy me-1"></i>Sao chép
+            {{-- Chỉ hiển thị nút KÍCH HOẠT khi cần --}}
+            @if(($isPending || $isGiveaway) && !$isOwned)
+                <button onclick="event.stopPropagation(); openActivateModal('{{ $gameKey->key_code }}', '{{ $game->name }}')" 
+                        class="bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 font-bold rounded-xs uppercase text-[10px] transition-colors">
+                    KÍCH HOẠT
                 </button>
-                <span id="modal-copy-msg-{{ $gameKey->id }}" class="text-green-400 text-xs ml-2 hidden">Đã sao chép!</span>
-                <br>
-                <button onclick="closeKeyModal('{{ $gameKey->id }}')" class="mt-3 text-gray-400 hover:text-white text-xs transition-colors">Đóng</button>
-            </div>
+            @elseif($isOwned)
+                <span class="text-[9px] text-orange-500 font-bold uppercase italic">Đã sở hữu</span>
+            @endif
         </div>
     </div>
+</div>
 
-    {{-- Modal Kích Hoạt --}}
-    @if($isPending && !$isOwned)
-    <div id="activate-modal-{{ $gameKey->id }}" class="fixed inset-0 flex items-center justify-center z-50 hidden">
-        <div class="absolute inset-0 bg-black/70" onclick="closeActivateModal('{{ $gameKey->id }}')"></div>
-        <div class="bg-[#1b2838] border border-amber-500 p-6 rounded-sm shadow-2xl max-w-md w-full mx-4 relative z-10">
-            <div class="text-center">
-                <div class="mb-4 flex justify-center">
-                    <i class="fas fa-key text-amber-500 text-4xl"></i>
-                </div>
-                <h2 class="text-amber-500 text-lg font-bold mb-2">Kích Hoạt Game Key</h2>
-                <p class="text-[#c7d5e0] text-xs mb-4">
-                    Game: <span class="text-white font-bold">{{ $game->name }}</span>
-                </p>
-                
-                {{-- Hiển thị Key --}}
-                <div class="bg-black/50 border border-gray-700 p-3 rounded mb-4">
-                    <p class="text-gray-400 text-[10px] mb-1">Mã kích hoạt của bạn:</p>
-                    <code id="key-code-{{ $gameKey->id }}" class="text-white font-mono text-sm block bg-gray-900 p-2 rounded cursor-text select-all break-all">
-                        {{ $gameKey->key_code }}
-                    </code>
-                    <button onclick="copyKeyCode('{{ $gameKey->key_code }}', '{{ $gameKey->id }}')" 
-                            class="mt-2 bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded text-[10px] font-bold transition-colors">
-                        <i class="fas fa-copy me-1"></i>Sao chép Key
-                    </button>
-                    <span id="copy-msg-{{ $gameKey->id }}" class="text-green-400 text-[10px] ml-2 hidden">Đã sao chép!</span>
-                </div>
+{{-- Modal Xem Key + Kích Hoạt (gộp chung) --}}
+<div id="key-modal-{{ $gameKey->id }}" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="absolute inset-0 bg-black/70" onclick="closeKeyModal('{{ $gameKey->id }}')"></div>
+    <div class="bg-[#1b2838] border border-sky-500 p-6 rounded-sm shadow-2xl max-w-sm w-full mx-4 relative z-10">
+        <div class="text-center">
+            <h3 class="text-sky-400 font-bold text-sm mb-1">Mã Kích Hoạt</h3>
+            <p class="text-white text-xs mb-3">{{ $game->name }} - {{ $versionName }}</p>
+            <div class="bg-black/50 border border-gray-700 p-3 rounded mb-3">
+                <code class="text-white font-mono text-xs block bg-gray-900 p-2 rounded cursor-text select-all break-all">
+                    {{ $gameKey->key_code }}
+                </code>
+            </div>
+            <button onclick="copyKeyFromModal('{{ $gameKey->key_code }}', '{{ $gameKey->id }}')" 
+                    class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-1.5 rounded text-xs font-bold transition-colors">
+                <i class="fas fa-copy me-1"></i>Sao chép
+            </button>
+            <span id="modal-copy-msg-{{ $gameKey->id }}" class="text-green-400 text-xs ml-2 hidden">Đã sao chép!</span>
+            <br>
+            <button onclick="closeKeyModal('{{ $gameKey->id }}')" class="mt-3 text-gray-400 hover:text-white text-xs transition-colors">Đóng</button>
+        </div>
+    </div>
+</div>
 
-                {{-- Hướng dẫn --}}
-                <div class="bg-[#101822] border border-gray-700 p-3 rounded mb-4 text-left">
-                    <p class="text-amber-400 font-bold text-xs mb-2"><i class="fas fa-info-circle me-1"></i>Hướng dẫn kích hoạt:</p>
-                    <ol class="text-[#c7d5e0] text-[10px] space-y-1 list-decimal list-inside">
-                        <li>Sao chép mã key ở trên</li>
-                        <li>Mở game <strong class="text-white">{{ $game->name }}</strong> trên máy tính</li>
-                        <li>Vào phần <strong class="text-white">Settings/Account</strong> của game</li>
-                        <li>Tìm mục <strong class="text-white">"Redeem Code"</strong> hoặc <strong class="text-white">"Activate Key"</strong></li>
-                        <li>Dán key vào và xác nhận</li>
-                        <li>Sau khi kích hoạt thành công trong game, bấm nút bên dưới</li>
-                    </ol>
-                </div>
-
-                {{-- Form xác nhận đã kích hoạt --}}
-                <form action="{{ route('library.activate') }}" method="POST" class="space-y-2">
-                    @csrf
-                    <input type="hidden" name="key_code" value="{{ $gameKey->key_code }}">
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-sm transition text-xs">
-                        <i class="fas fa-check me-1"></i>XÁC NHẬN ĐÃ KÍCH HOẠT TRONG GAME
-                    </button>
-                </form>
-                
-                <button onclick="closeActivateModal('{{ $gameKey->id }}')" 
-                        class="mt-2 text-gray-400 hover:text-white text-[10px] transition-colors">
-                    Đóng
+{{-- Modal Kích Hoạt (hướng dẫn) --}}
+@if($isPending || $isGiveaway)
+<div id="activate-modal-{{ $gameKey->id }}" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="absolute inset-0 bg-black/70" onclick="closeActivateModal('{{ $gameKey->id }}')"></div>
+    <div class="bg-[#1b2838] border border-amber-500 p-6 rounded-sm shadow-2xl max-w-md w-full mx-4 relative z-10">
+        <div class="text-center">
+            <div class="mb-4 flex justify-center">
+                <i class="fas fa-key text-amber-500 text-4xl"></i>
+            </div>
+            <h2 class="text-amber-500 text-lg font-bold mb-2">Kích Hoạt Game Key</h2>
+            <p class="text-[#c7d5e0] text-xs mb-1">Game: <span class="text-white font-bold">{{ $game->name }}</span></p>
+            <p class="text-[#c7d5e0] text-xs mb-4">Phiên bản: <span class="text-sky-400">{{ $versionName }}</span></p>
+            
+            <div class="bg-black/50 border border-gray-700 p-3 rounded mb-4">
+                <p class="text-gray-400 text-[10px] mb-1">Mã kích hoạt của bạn:</p>
+                <code class="text-white font-mono text-sm block bg-gray-900 p-2 rounded cursor-text select-all break-all">
+                    {{ $gameKey->key_code }}
+                </code>
+                <button onclick="copyKeyCode('{{ $gameKey->key_code }}', '{{ $gameKey->id }}')" 
+                        class="mt-2 bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded text-[10px] font-bold transition-colors">
+                    <i class="fas fa-copy me-1"></i>Sao chép Key
                 </button>
+                <span id="copy-msg-{{ $gameKey->id }}" class="text-green-400 text-[10px] ml-2 hidden">Đã sao chép!</span>
             </div>
+
+            <div class="bg-[#101822] border border-gray-700 p-3 rounded mb-4 text-left">
+                <p class="text-amber-400 font-bold text-xs mb-2"><i class="fas fa-info-circle me-1"></i>Hướng dẫn kích hoạt:</p>
+                <ol class="text-[#c7d5e0] text-[10px] space-y-1 list-decimal list-inside">
+                    <li>Sao chép mã key ở trên</li>
+                    <li>Mở game <strong class="text-white">{{ $game->name }}</strong> trên máy tính</li>
+                    <li>Vào phần <strong class="text-white">Redeem Code</strong> trong game</li>
+                    <li>Dán key vào và xác nhận</li>
+                    <li>Sau khi kích hoạt thành công, bấm nút bên dưới</li>
+                </ol>
+            </div>
+
+            <form action="{{ route('library.activate') }}" method="POST" class="space-y-2">
+                @csrf
+                <input type="hidden" name="key_code" value="{{ $gameKey->key_code }}">
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-sm transition text-xs">
+                    <i class="fas fa-check me-1"></i>XÁC NHẬN ĐÃ KÍCH HOẠT TRONG GAME
+                </button>
+            </form>
+            
+            <button onclick="closeActivateModal('{{ $gameKey->id }}')" 
+                    class="mt-2 text-gray-400 hover:text-white text-[10px] transition-colors">
+                Đóng
+            </button>
         </div>
     </div>
-    @endif
+</div>
+@endif
+@else
+{{-- Fallback nếu không có game --}}
+<div class="bg-[#171a21] border border-gray-800 rounded-sm overflow-hidden">
+    <div class="h-36 bg-[#101822] flex items-center justify-center">
+        <i class="fas fa-key text-sky-400 text-3xl opacity-50"></i>
+    </div>
+    <div class="p-3 text-center">
+        <p class="text-gray-400 text-xs mb-1">Game Key</p>
+        <code class="text-white font-mono text-[10px] block bg-gray-900 p-2 rounded break-all select-all">{{ $gameKey->key_code ?? 'N/A' }}</code>
+        <span class="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold 
+            {{ $gameKey->status === 'Activated' ? 'bg-green-600/20 text-green-400' : 'bg-yellow-600/20 text-yellow-400' }}">
+            {{ $gameKey->status ?? 'Unknown' }}
+        </span>
+    </div>
+</div>
 @endif
 
 <script>
-// Đảm bảo hàm toggle không bị định nghĩa lại nhiều lần
-if (typeof toggleKey !== 'function') {
-    function toggleKey(btn) {
-        const box = btn.nextElementSibling;
-        box.classList.toggle('hidden');
-    }
-}
-
 if (typeof openActivateModal !== 'function') {
     function openActivateModal(keyCode, gameName) {
-        // Tìm modal gần nhất
-        const modals = document.querySelectorAll('[id^="activate-modal-"]');
-        modals.forEach(m => {
-            if (m.querySelector('code') && m.querySelector('code').textContent.trim() === keyCode.trim()) {
+        document.querySelectorAll('[id^="activate-modal-"]').forEach(m => {
+            if (m.querySelector('code') && m.querySelector('code').textContent.trim() === keyCode.trim())
                 m.classList.remove('hidden');
-            }
         });
     }
 }
-
 if (typeof closeActivateModal !== 'function') {
-    function closeActivateModal(gameKeyId) {
-        const modal = document.getElementById('activate-modal-' + gameKeyId);
-        if (modal) modal.classList.add('hidden');
+    function closeActivateModal(id) {
+        const m = document.getElementById('activate-modal-' + id);
+        if (m) m.classList.add('hidden');
     }
 }
-
 if (typeof copyKeyCode !== 'function') {
-    function copyKeyCode(keyCode, gameKeyId) {
-        navigator.clipboard.writeText(keyCode).then(() => {
-            const msg = document.getElementById('copy-msg-' + gameKeyId);
-            if (msg) {
-                msg.classList.remove('hidden');
-                setTimeout(() => msg.classList.add('hidden'), 2000);
-            }
+    function copyKeyCode(code, id) {
+        navigator.clipboard.writeText(code).then(() => {
+            const msg = document.getElementById('copy-msg-' + id);
+            if (msg) { msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 2000); }
         });
     }
 }
-
 if (typeof openKeyModal !== 'function') {
-    function openKeyModal(keyCode, gameKeyId) {
-        const modal = document.getElementById('key-modal-' + gameKeyId);
-        if (modal) modal.classList.remove('hidden');
+    function openKeyModal(code, id) {
+        const m = document.getElementById('key-modal-' + id);
+        if (m) m.classList.remove('hidden');
     }
 }
-
 if (typeof closeKeyModal !== 'function') {
-    function closeKeyModal(gameKeyId) {
-        const modal = document.getElementById('key-modal-' + gameKeyId);
-        if (modal) modal.classList.add('hidden');
+    function closeKeyModal(id) {
+        const m = document.getElementById('key-modal-' + id);
+        if (m) m.classList.add('hidden');
     }
 }
-
 if (typeof copyKeyFromModal !== 'function') {
-    function copyKeyFromModal(keyCode, gameKeyId) {
-        navigator.clipboard.writeText(keyCode).then(() => {
-            const msg = document.getElementById('modal-copy-msg-' + gameKeyId);
-            if (msg) {
-                msg.classList.remove('hidden');
-                setTimeout(() => msg.classList.add('hidden'), 2000);
-            }
+    function copyKeyFromModal(code, id) {
+        navigator.clipboard.writeText(code).then(() => {
+            const msg = document.getElementById('modal-copy-msg-' + id);
+            if (msg) { msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 2000); }
         });
     }
 }

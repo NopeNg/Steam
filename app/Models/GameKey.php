@@ -8,7 +8,7 @@ class GameKey extends Model
 {
     protected $table = 'game_keys';
     public $timestamps = false;
-    protected $fillable = ['order_item_id', 'key_code', 'status', 'fetched_at', 'supplier_transaction_id', 'supplier_code'];
+    protected $fillable = ['order_item_id', 'game_version_id', 'key_code', 'status', 'fetched_at', 'supplier_transaction_id', 'supplier_code'];
 
     public function orderItem()
     {

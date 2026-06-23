@@ -239,3 +239,15 @@ CREATE TABLE game_supplier_mappings (
     FOREIGN KEY (supplier_provider_id) REFERENCES supplier_providers(id) ON DELETE CASCADE,
     UNIQUE KEY unique_game_supplier (game_id, supplier_provider_id)
 );
+
+-- ============================================
+-- 9. NHÓM BẢNG LOG HOẠT ĐỘNG
+-- ============================================
+
+CREATE TABLE activity_logs (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    action VARCHAR(255) NOT NULL,
+    details TEXT NULL,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL
+);

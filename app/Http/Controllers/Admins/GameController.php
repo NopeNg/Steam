@@ -3,14 +3,21 @@
 namespace App\Http\Controllers\Admins;
 
 use App\Http\Controllers\Controller;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use App\Models\Game;
 use App\Models\GameImage;
 use App\Models\CartItem;
 
-
 class GameController extends Controller
 {
+    private ActivityLogService $activityLog;
+
+    public function __construct(ActivityLogService $activityLog)
+    {
+        $this->activityLog = $activityLog;
+    }
+
     public function index(Request $request)
     {
         $query = Game::query();
@@ -84,75 +91,22 @@ class GameController extends Controller
             }
         }
 
+        $this->activityLog->log('Thêm game mới', 'Đã thêm game "' . $game->name . '" (ID: ' . $game->id . ')');
+
         return redirect()->route('admin.games.index')->with('success', 'Đã thêm mới Sản phẩm thành công!');
     }
+
     public function show($id)
     {
         $game = Game::with('images')->findOrFail($id);
         return view('Admins.games.show', compact('game'));
     }
+
     public function edit($id)
     {
         $game = Game::with('images')->findOrFail($id);
         return view('Admins.games.edit', compact('game'));
     }
-
-    // public function update(Request $request, $id)
-    // {
-    //     $request->validate([
-    //         'name' => 'required|string|max:255',
-    //         'publisher' => 'nullable|string|max:255',
-    //         'developer' => 'nullable|string|max:255',
-    //         'description' => 'nullable|string',
-    //         'requirements' => 'nullable|string',
-    //         'status' => 'required|in:Active,Inactive',
-    //         'release_date' => 'nullable|date',
-    //         'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-    //         'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-    //         'gallery_types.*' => 'nullable|string',
-    //         'gallery_parts.*' => 'nullable|string',
-    //     ], [
-    //         'name.required' => 'Tên game không được để trống.',
-    //         'status.in' => 'Trạng thái không hợp lệ.',
-    //         'cover_image.image' => 'Ảnh bìa phải là file ảnh.',
-    //         'gallery_images.*.image' => 'Ảnh gallery phải là file ảnh.',
-    //     ]);
-
-    //     $game = Game::findOrFail($id);
-
-    //     $game->update($request->only([
-    //         'name',
-    //         'publisher',
-    //         'developer',
-    //         'description',
-    //         'requirements',
-    //         'status',
-    //         'release_date'
-    //     ]));
-
-    //     if ($request->hasFile('cover_image')) {
-    //         $path = $request->file('cover_image')->store('games', 'public');
-    //         $game->update(['cover_image' => '/storage/' . $path]);
-    //     }
-
-    //     if ($request->hasFile('gallery_images')) {
-    //         foreach ($request->file('gallery_images') as $index => $file) {
-    //             if ($file->isValid()) {
-    //                 $path = $file->store('gallery', 'public');
-    //                 GameImage::create([
-    //                     'game_id' => $game->id,
-    //                     'image_path' => '/storage/' . $path,
-    //                     'image_type' => $request->gallery_types[$index],
-    //                     'game_part' => $request->gallery_parts[$index]
-    //                 ]);
-    //             }
-    //         }
-    //     }
-
-    //     return redirect()->route('admin.games.index');
-    // }
-
-
 
     public function update(Request $request, $id)
     {
@@ -162,7 +116,7 @@ class GameController extends Controller
             'developer' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'requirements' => 'nullable|string',
-            'status' => 'required|in:Active,Inactive', // Trạng thái từ Form gửi lên
+            'status' => 'required|in:Active,Inactive,ComingSoon,Archived',
             'release_date' => 'nullable|date',
             'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
@@ -190,15 +144,11 @@ class GameController extends Controller
             }
         }
 
-        // Cập nhật thông tin game cơ bản
         $game->update($data);
 
-        // 2. LOGIC MỚI: TỰ ĐỘNG QUÉT SẠCH GIỎ HÀNG KHI ADMIN CHUYỂN THÀNH 'Inactive'
+        // TỰ ĐỘNG QUÉT SẠCH GIỎ HÀNG KHI ADMIN CHUYỂN THÀNH 'Inactive'
         if ($game->status === 'Inactive') {
-            // Bước A: Tìm tất cả các ID phiên bản (versions) của trò chơi này
-            $versionIds = $game->versions()->pluck('id'); 
-
-            // Bước B: Xóa thẳng tay tất cả các item trong giỏ hàng chứa các phiên bản đó
+            $versionIds = $game->versions()->pluck('id');
             CartItem::whereIn('game_version_id', $versionIds)->delete();
         }
 
@@ -221,14 +171,19 @@ class GameController extends Controller
             }
         }
 
-        // Thêm thông báo success để Admin biết hệ thống đã xử lý xong
+        $this->activityLog->log('Cập nhật game', 'Đã cập nhật game "' . $game->name . '" (ID: ' . $game->id . '), trạng thái: ' . $game->status);
+
         return redirect()->route('admin.games.index')->with('success', 'Cập nhật sản phẩm và đồng bộ giỏ hàng thành công!');
     }
+
     public function destroy($id)
     {
         try {
             $game = Game::findOrFail($id);
+            $gameName = $game->name;
             $game->delete();
+
+            $this->activityLog->log('Xóa game', 'Đã xóa game "' . $gameName . '" (ID: ' . $id . ')');
 
             return redirect()->back()->with('success', 'Đã xóa sản phẩm thành công!');
         } catch (\Illuminate\Database\QueryException $e) {
@@ -243,12 +198,15 @@ class GameController extends Controller
     public function destroyImage($id)
     {
         $image = GameImage::findOrFail($id);
+        $gameId = $image->game_id;
 
         if ($image->image_path && file_exists(public_path($image->image_path))) {
             unlink(public_path($image->image_path));
         }
 
         $image->delete();
+
+        $this->activityLog->log('Xóa ảnh game', 'Đã xóa ảnh (ID: ' . $id . ') của game (ID: ' . $gameId . ')');
 
         return redirect()->back();
     }
