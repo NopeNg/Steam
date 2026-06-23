@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'auth.player' => \App\Http\Middleware\EnsurePlayerIsAuthenticated::class,
+            'check.banned' => \App\Http\Middleware\CheckBannedPlayer::class,
             'admin' => \App\Http\Middleware\CheckAdmin::class,
         ]);
     })

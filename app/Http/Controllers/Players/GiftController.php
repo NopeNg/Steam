@@ -16,6 +16,7 @@ class GiftController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('auth.player'),
+            new Middleware('check.banned'),
         ];
     }
 

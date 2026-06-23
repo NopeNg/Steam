@@ -15,7 +15,7 @@ class HomeController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('auth.player'),
+            new Middleware('check.banned'),
         ];
     }
     public function index()

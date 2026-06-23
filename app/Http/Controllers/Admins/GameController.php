@@ -68,7 +68,7 @@ class GameController extends Controller
             if ($releaseDate->gt($today)) {
                 $data['status'] = 'ComingSoon';
             }
-        }
+        } 
 
         $game = Game::create($data);
 
