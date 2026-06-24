@@ -126,11 +126,11 @@
         <div class="max-w-6xl mx-auto px-4">
             <div class="border-b border-gray-800 pb-4 flex flex-col md:flex-row justify-between items-center gap-4">
                 <p>© 2026 SteamKey Marketplace. Được phát triển dựa trên mô hình API JIT Dropshipping.</p>
-                <div class="flex space-x-4">
-                    <a href="#" class="hover:text-white transition">Chính sách bảo mật</a>
-                    <a href="#" class="hover:text-white transition">Điều khoản dịch vụ</a>
-                    <a href="#" class="hover:text-white transition">Liên hệ hoàn tiền</a>
-                </div>
+  <div class="flex space-x-4">
+    <a href="{{ route('privacy') }}" class="hover:text-white transition">Chính sách bảo mật</a>
+    <a href="{{ route('terms') }}" class="hover:text-white transition">Điều khoản dịch vụ</a>
+    <a href="{{ route('refund') }}" class="hover:text-white transition">Liên hệ hoàn tiền</a>
+</div>
             </div>
             <p class="pt-4 text-[11px] text-gray-600 leading-relaxed">
                 Tất cả các nhãn hiệu, tên trò chơi và hình ảnh liên quan đều thuộc quyền sở hữu của các nhà phát hành

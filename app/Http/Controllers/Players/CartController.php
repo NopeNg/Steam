@@ -73,6 +73,22 @@ public static function middleware(): array
         $item->update(['quantity' => $request->quantity]);
         return redirect()->back();
     }
+public function validateCart()
+{
+    $cartId = $this->getCartId();
+    $items = CartItem::with('version.game')->where('cart_id', $cartId)->get();
+    $wasChanged = false;
+
+    foreach ($items as $item) {
+        // Kiểm tra trạng thái game từ model version -> game
+        if ($item->version->game->status !== 'Active') {
+            $item->delete();
+            $wasChanged = true;
+        }
+    }
+
+    return response()->json(['changed' => $wasChanged]);
+}
 
     public function remove($itemId) {
         // Kiểm tra sở hữu trước khi xóa

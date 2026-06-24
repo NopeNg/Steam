@@ -52,4 +52,27 @@
         </div>
     @endif
 </div>
+<script>
+    function syncCart() {
+        fetch("{{ route('cart.validate') }}", {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.changed) {
+                // Hiển thị thông báo nhẹ nhàng cho người dùng
+                alert('Một số sản phẩm trong giỏ hàng đã không còn khả dụng và đã bị xóa.');
+                location.reload(); // Load lại trang để cập nhật danh sách
+            }
+        })
+        .catch(error => console.error('Lỗi đồng bộ giỏ hàng:', error));
+    }
+
+    // Tự động kiểm tra trạng thái mỗi 15 giây (15000ms)
+    setInterval(syncCart, 15000);
+</script>
 @endsection

@@ -45,20 +45,23 @@
             </div>
         @endif
     </div>
-
-    {{-- Tab Đã thu hồi --}}
-    <div id="tab-revoked" class="space-y-4 hidden">
-        @forelse($revokedGames as $item)
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-[#101822] p-4 rounded border-l-4 border-red-500 opacity-60">
-                    <p class="text-white font-bold text-sm">{{ optional(optional(optional($item->gameKey)->orderItem)->version)->game->name ?? 'Game không xác định' }}</p>
-                    <p class="text-red-500 text-[10px] font-bold mt-1 uppercase tracking-widest">Đã bị thu hồi bởi hệ thống</p>
-                </div>
+{{-- Tab Đã thu hồi --}}
+<div id="tab-revoked" class="space-y-4 hidden">
+    @forelse($revokedGames as $key) {{-- Đổi $item thành $key cho rõ nghĩa --}}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-[#101822] p-4 rounded border-l-4 border-red-500 opacity-60">
+                {{-- Vì $key là đối tượng GameKey, truy cập thẳng vào orderItem --}}
+                <p class="text-white font-bold text-sm">
+                    {{ optional(optional($key->orderItem)->version)->game->name ?? 'Game không xác định' }}
+                </p>
+                <p class="text-red-500 text-[10px] font-bold mt-1 uppercase tracking-widest">
+                    Đã bị thu hồi bởi hệ thống
+                </p>
             </div>
-        @empty 
-            <p class="text-gray-500 text-sm italic">Không có trò chơi nào bị thu hồi.</p> 
-        @endforelse
-    </div>
+        </div>
+    @empty 
+        <p class="text-gray-500 text-sm italic">Không có trò chơi nào bị thu hồi.</p> 
+    @endforelse
 </div>
 
 <script>

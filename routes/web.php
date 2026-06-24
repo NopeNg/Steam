@@ -24,12 +24,28 @@ Route::post('/register', [PlayerAuthController::class, 'register']);
 Route::get('/login', [PlayerAuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [PlayerAuthController::class, 'login']);
 Route::post('/logout', [PlayerAuthController::class, 'logout'])->name('logout');
+// Route cho các trang chính sách và điều khoản
+// Bỏ Route::group đi để các route nằm ở gốc website
+Route::get('/terms', function () {
+    return view('Players.terms');
+})->name('terms');
+
+Route::get('/privacy', function () {
+    return view('Players.privacy');
+})->name('privacy');
+
+Route::get('/refund', function () {
+    return view('Players.refund-policy');
+})->name('refund');
 
 Route::middleware(['auth.player','check.banned'])->group(function () {
 // kiểm tra trạng thái
 Route::get('/api/check-status', function() {
         return response()->json(['status' => Auth::guard('player')->user()->status]);
     });
+Route::post('/cart/validate', [App\Http\Controllers\Players\CartController::class, 'validateCart'])
+         ->name('cart.validate');
+         
 
     Route::prefix('cart')->group(function () {
         Route::get('/', [CartController::class, 'index'])->name('cart.index');
