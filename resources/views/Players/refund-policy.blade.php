@@ -39,9 +39,11 @@
     </div>
 
     <div class="mt-8">
-        <a href="mailto:support@steamkey.com" class="inline-block bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-6 rounded-sm transition">
-            Gửi yêu cầu hỗ trợ ngay
-        </a>
+<a href="mailto:hole1524@gmail.com" 
+   class="inline-block bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 px-6 rounded transition duration-300">
+   Gửi Email Hỗ Trợ
+</a>
     </div>
+    
 </div>
 @endsection
