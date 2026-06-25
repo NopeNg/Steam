@@ -74,8 +74,14 @@
                                     <span class="badge bg-success rounded-pill px-3">Sẵn có</span>
                                 @elseif($key->status == 'Sold')
                                     <span class="badge bg-secondary rounded-pill px-3">Đã bán</span>
-                                @else
+                                @elseif($key->status == 'Revoked')
+                                    <span class="badge bg-danger rounded-pill px-3">Đã thu hồi</span>
+                                @elseif($key->status == 'Giveaway')
                                     <span class="badge rounded-pill px-3 text-white" style="background-color: #6f42c1;">Giveaway</span>
+                                @elseif($key->status == 'Activated')
+                                    <span class="badge bg-info rounded-pill px-3">Đã kích hoạt</span>
+                                @else
+                                    <span class="badge bg-warning text-dark rounded-pill px-3">{{ $key->status }}</span>
                                 @endif
                             </td>
                             <td class="text-end px-4">

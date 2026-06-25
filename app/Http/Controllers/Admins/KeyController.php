@@ -7,6 +7,8 @@ use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use App\Models\GameKey;
 use App\Models\Game;
+use App\Models\Library;
+use Illuminate\Support\Facades\DB;
 
 class KeyController extends Controller
 {
@@ -68,5 +70,38 @@ class KeyController extends Controller
         $this->activityLog->log('Tạo key giveaway', 'Đã tạo key giveaway: ' . trim($request->key_code) . ' cho game version ID: ' . $request->game_version_id);
 
         return redirect()->route('admin.keys.index')->with('success', 'Đã tạo mã Key Giveaway thành công!');
+    }
+
+    /**
+     * Thu hồi key của người chơi
+     * - Set GameKey.status = 'Revoked'
+     * - Xóa Library record của key đó để người chơi không thấy key nữa
+     * - Cho phép người chơi mua game đó lại
+     */
+    public function revoke($id)
+    {
+        $gameKey = GameKey::with('orderItem.version.game')->findOrFail($id);
+
+        if ($gameKey->status === 'Revoked') {
+            return back()->withErrors(['error' => 'Key này đã được thu hồi trước đó.']);
+        }
+
+        if ($gameKey->status !== 'Delivered' && $gameKey->status !== 'Activated') {
+            return back()->withErrors(['error' => 'Chỉ có thể thu hồi key đã được giao (Delivered) hoặc đã kích hoạt (Activated).']);
+        }
+
+        $gameName = $gameKey->orderItem->version->game->name ?? 'N/A';
+
+        DB::transaction(function () use ($gameKey) {
+            // 1. Đánh dấu key là Revoked
+            $gameKey->update(['status' => 'Revoked']);
+
+            // 2. Xóa Library record của key này để người chơi không thấy trong thư viện
+            Library::where('game_key_id', $gameKey->id)->delete();
+        });
+
+        $this->activityLog->log('Thu hồi key', 'Đã thu hồi key (ID: ' . $gameKey->id . ') của game "' . $gameName . '"');
+
+        return back()->with('success', 'Đã thu hồi key của game "' . $gameName . '" thành công! Người chơi sẽ không còn thấy key này trong thư viện và có thể mua lại.');
     }
 }

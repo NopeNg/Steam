@@ -30,7 +30,8 @@
 @endphp
 
 @if($game)
-<div class="bg-[#171a21] border border-gray-800 rounded-sm overflow-hidden transition-all hover:border-gray-600 group cursor-pointer" onclick="openKeyModal('{{ $gameKey->key_code }}', '{{ $gameKey->id }}')">
+<div class="bg-[#171a21] border border-gray-800 rounded-sm overflow-hidden transition-all hover:border-gray-600 group {{ $gameKey->status !== 'Revoked' ? 'cursor-pointer' : 'opacity-60' }}" 
+     {{ $gameKey->status !== 'Revoked' ? 'onclick=openKeyModal(\''.$gameKey->key_code.'\',\''.$gameKey->id.'\')' : '' }}>
     {{-- Cover ảnh trên --}}
     <div class="h-36 overflow-hidden relative">
         <img src="{{ $game->cover_image ?? 'https://via.placeholder.com/300x150' }}" 
