@@ -16,15 +16,15 @@
 
     {{-- Tab Chưa kích hoạt --}}
     <div id="tab-inactive" class="space-y-4">
-        @forelse($inactiveGames->chunk(12) as $page => $chunk)
+        @forelse($inactiveGames->chunk(9) as $page => $chunk)
             <div class="page-inactive grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 {{ $page > 0 ? 'hidden' : '' }}" data-page="{{ $page }}">
                 @foreach($chunk as $item) @include('Players.library._game_card', ['item' => $item]) @endforeach
             </div>
         @empty <p class="text-gray-500 text-sm">Chưa có game nào trong trạng thái chờ.</p> @endforelse
-        @if($inactiveGames->count() > 12)
+        @if($inactiveGames->count() > 9)
             <div class="flex justify-center gap-2 mt-4">
                 <button onclick="prevPage('inactive')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">← Trước</button>
-                <span class="px-3 py-1 bg-gray-800 text-gray-300 rounded text-xs">Trang <span id="page-inactive">1</span>/<span id="total-inactive">{{ ceil($inactiveGames->count() / 12) }}</span></span>
+                <span class="px-3 py-1 bg-gray-800 text-gray-300 rounded text-xs">Trang <span id="page-inactive">1</span>/<span id="total-inactive">{{ ceil($inactiveGames->count() / 9) }}</span></span>
                 <button onclick="nextPage('inactive')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">Sau →</button>
             </div>
         @endif
@@ -32,37 +32,39 @@
 
     {{-- Tab Đã kích hoạt --}}
     <div id="tab-active" class="space-y-4 hidden">
-        @forelse($activeGames->chunk(12) as $page => $chunk)
+        @forelse($activeGames->chunk(9) as $page => $chunk)
             <div class="page-active grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 {{ $page > 0 ? 'hidden' : '' }}" data-page="{{ $page }}">
                 @foreach($chunk as $item) @include('Players.library._game_card', ['item' => $item]) @endforeach
             </div>
         @empty <p class="text-gray-500 text-sm">Bạn chưa kích hoạt game nào.</p> @endforelse
-        @if($activeGames->count() > 12)
+        @if($activeGames->count() > 9)
             <div class="flex justify-center gap-2 mt-4">
                 <button onclick="prevPage('active')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">← Trước</button>
-                <span class="px-3 py-1 bg-gray-800 text-gray-300 rounded text-xs">Trang <span id="page-active">1</span>/<span id="total-active">{{ ceil($activeGames->count() / 12) }}</span></span>
+                <span class="px-3 py-1 bg-gray-800 text-gray-300 rounded text-xs">Trang <span id="page-active">1</span>/<span id="total-active">{{ ceil($activeGames->count() / 9) }}</span></span>
                 <button onclick="nextPage('active')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">Sau →</button>
             </div>
         @endif
     </div>
-{{-- Tab Đã thu hồi --}}
-<div id="tab-revoked" class="space-y-4 hidden">
-    @forelse($revokedGames as $key) {{-- Đổi $item thành $key cho rõ nghĩa --}}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-[#101822] p-4 rounded border-l-4 border-red-500 opacity-60">
-                {{-- Vì $key là đối tượng GameKey, truy cập thẳng vào orderItem --}}
-                <p class="text-white font-bold text-sm">
-                    {{ optional(optional($key->orderItem)->version)->game->name ?? 'Game không xác định' }}
-                </p>
-                <p class="text-red-500 text-[10px] font-bold mt-1 uppercase tracking-widest">
-                    Đã bị thu hồi bởi hệ thống
-                </p>
+
+    {{-- Tab Đã thu hồi --}}
+    <div id="tab-revoked" class="space-y-4 hidden">
+        @forelse($revokedGames->chunk(9) as $page => $chunk)
+            <div class="page-revoked grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 {{ $page > 0 ? 'hidden' : '' }}" data-page="{{ $page }}">
+                @foreach($chunk as $key)
+                    @include('Players.library._game_card', ['item' => $key])
+                @endforeach
             </div>
-        </div>
-    @empty 
-        <p class="text-gray-500 text-sm italic">Không có trò chơi nào bị thu hồi.</p> 
-    @endforelse
-</div>
+        @empty 
+            <p class="text-gray-500 text-sm italic">Không có trò chơi nào bị thu hồi.</p> 
+        @endforelse
+        @if($revokedGames->count() > 9)
+            <div class="flex justify-center gap-2 mt-4">
+                <button onclick="prevPage('revoked')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">← Trước</button>
+                <span class="px-3 py-1 bg-gray-800 text-gray-300 rounded text-xs">Trang <span id="page-revoked">1</span>/<span id="total-revoked">{{ ceil($revokedGames->count() / 9) }}</span></span>
+                <button onclick="nextPage('revoked')" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">Sau →</button>
+            </div>
+        @endif
+    </div>
 
 <script>
 function showTab(tab) {
@@ -102,6 +104,16 @@ function prevPage(tab) {
         const pageEl = document.getElementById(`page-${tab}`);
         if (pageEl) pageEl.textContent = currentPage;
     }
+}
+
+function openRevokeReasonModal(id) {
+    const m = document.getElementById('revoke-reason-modal-' + id);
+    if (m) m.classList.remove('hidden');
+}
+
+function closeRevokeReasonModal(id) {
+    const m = document.getElementById('revoke-reason-modal-' + id);
+    if (m) m.classList.add('hidden');
 }
 </script>
 @endsection

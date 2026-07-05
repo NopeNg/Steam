@@ -17,60 +17,39 @@
     <div class="card border-0 shadow-sm rounded-3 mb-4">
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-6 col-md-3 col-xl">
+                <div class="col-6 col-md-4 col-xl">
                     <div class="border rounded-3 p-3 text-center h-100">
                         <div class="fs-1 text-primary mb-2"><i class="fas fa-dollar-sign"></i></div>
                         <h5 class="mb-0 fw-bold">{{ number_format($totalRevenue, 0, ',', '.') }}đ</h5>
                         <small class="text-muted">Tổng doanh thu</small>
                     </div>
                 </div>
-                <div class="col-6 col-md-3 col-xl">
+                <div class="col-6 col-md-4 col-xl">
                     <div class="border rounded-3 p-3 text-center h-100">
                         <div class="fs-1 text-success mb-2"><i class="fas fa-shopping-bag"></i></div>
                         <h5 class="mb-0 fw-bold">{{ $totalOrders }}</h5>
                         <small class="text-muted">Tổng đơn hàng</small>
                     </div>
                 </div>
-                <div class="col-6 col-md-3 col-xl">
-                    <div class="border rounded-3 p-3 text-center h-100">
-                        <div class="fs-1 text-info mb-2"><i class="fas fa-key"></i></div>
-                        <h5 class="mb-0 fw-bold">{{ number_format($totalKeysSold) }}</h5>
-                        <small class="text-muted">Key đã bán</small>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3 col-xl">
+                <div class="col-6 col-md-4 col-xl">
                     <div class="border rounded-3 p-3 text-center h-100">
                         <div class="fs-1 text-warning mb-2"><i class="fas fa-users"></i></div>
                         <h5 class="mb-0 fw-bold">{{ $totalUsers }}</h5>
                         <small class="text-muted">Người dùng</small>
                     </div>
                 </div>
-                <div class="col-6 col-md-3 col-xl">
+                <div class="col-6 col-md-4 col-xl">
                     <div class="border rounded-3 p-3 text-center h-100">
-                        <div class="fs-1 text-danger mb-2"><i class="fas fa-exclamation-circle"></i></div>
-                        <h5 class="mb-0 fw-bold">{{ $apiErrors }}</h5>
-                        <small class="text-muted">Lỗi API</small>
+                        <div class="fs-1 text-danger mb-2"><i class="fas fa-exclamation-triangle"></i></div>
+                        <h5 class="mb-0 fw-bold">{{ $errorKeys }}</h5>
+                        <small class="text-muted">Key lỗi</small>
                     </div>
                 </div>
-                <div class="col-6 col-md-3 col-xl">
+                <div class="col-6 col-md-4 col-xl">
                     <div class="border rounded-3 p-3 text-center h-100">
                         <div class="fs-1 text-secondary mb-2"><i class="fas fa-calendar-day"></i></div>
                         <h5 class="mb-0 fw-bold">{{ number_format($revenueMonth, 0, ',', '.') }}đ</h5>
                         <small class="text-muted">Doanh thu tháng này</small>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3 col-xl">
-                    <div class="border rounded-3 p-3 text-center h-100">
-                        <div class="fs-1 text-primary mb-2"><i class="fas fa-chart-line"></i></div>
-                        <h5 class="mb-0 fw-bold">{{ number_format($revenueToday, 0, ',', '.') }}đ</h5>
-                        <small class="text-muted">Doanh thu hôm nay</small>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3 col-xl">
-                    <div class="border rounded-3 p-3 text-center h-100">
-                        <div class="fs-1 text-success mb-2"><i class="fas fa-trophy"></i></div>
-                        <h5 class="mb-0 fw-bold">{{ $orders24hSuccess }}</h5>
-                        <small class="text-muted">Đơn hoàn thành (24h)</small>
                     </div>
                 </div>
             </div>

@@ -42,7 +42,11 @@ class OrderController extends Controller
 
     public function show($id)
     {
-        $order = \App\Models\Order::with(['player', 'orderItems.gameVersion.game'])->findOrFail($id);
+        $order = \App\Models\Order::with([
+            'player',
+            'orderItems.gameVersion.game',
+            'orderItems.gameKeys'
+        ])->findOrFail($id);
 
         return view('Admins.orders.show', compact('order'));
     }

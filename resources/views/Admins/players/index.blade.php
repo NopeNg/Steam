@@ -59,12 +59,15 @@
                                 @endif
                             </td>
                             <td class="text-end px-4">
+                                <a href="{{ route('admin.players.revoked', $player->id) }}" class="btn btn-sm btn-outline-danger me-1 position-relative" title="Xem game đã thu hồi">
+                                    <i class="fas fa-trash-alt me-1"></i> Đã thu hồi
+                                </a>
                                 <form action="{{ route('admin.players.toggle', $player->id) }}" method="POST" class="d-inline">
                                     @csrf
                                     @method('PUT')
                                     @if($player->status === 'Active')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn khóa tài khoản này?')">
-                                            <i class="fas fa-user-slash me-1"></i> Khóa tài khoản
+                                        <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Bạn có chắc chắn muốn khóa tài khoản này?')">
+                                            <i class="fas fa-user-slash me-1"></i> Khóa
                                         </button>
                                     @else
                                         <button type="submit" class="btn btn-sm btn-outline-success" onclick="return confirm('Bạn có chắc chắn muốn mở khóa tài khoản này?')">

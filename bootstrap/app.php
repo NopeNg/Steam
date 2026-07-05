@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.banned' => \App\Http\Middleware\CheckBannedPlayer::class,
             'admin' => \App\Http\Middleware\CheckAdmin::class,
         ]);
+
+        $middleware->validateCsrfTokens(except: [
+            '/chat',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
     })->create();

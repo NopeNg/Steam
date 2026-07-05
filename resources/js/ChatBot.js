@@ -95,17 +95,27 @@
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF() },
                 body: JSON.stringify({ message: msg })
             });
-            const data = await res.json();
-            // Gemini: data.candidates[0].content.parts[0].text
-            let text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!text) {
-                // Handle error responses
-                const errMsg = data?.error?.message || data?.error || '';
-                text = errMsg || 'Không nhận được phản hồi từ AI.';
+            
+            let text;
+            const bodyText = await res.text();
+            
+            // Thử parse JSON từ text đã đọc
+            try {
+                const data = JSON.parse(bodyText);
+                // Gemini: data.candidates[0].content.parts[0].text
+                text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!text) {
+                    const errMsg = data?.error?.message || data?.error || JSON.stringify(data);
+                    text = errMsg || 'Không nhận được phản hồi từ AI.';
+                }
+            } catch (jsonErr) {
+                // Response không phải JSON - dùng raw text
+                text = '⚠️ Server trả về lỗi (HTTP ' + res.status + '): ' + bodyText.substring(0, 200);
             }
-            add(text, 'b');
+            
+            add(text, text.startsWith('⚠️') ? 'err' : 'b');
         } catch (e) {
-            add('⚠️ Lỗi kết nối. Vui lòng thử lại.', 'err');
+            add('⚠️ Lỗi kết nối: ' + e.message, 'err');
         }
     }
 

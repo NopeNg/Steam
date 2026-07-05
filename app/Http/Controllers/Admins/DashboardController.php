@@ -33,26 +33,25 @@ class DashboardController extends Controller
         $sub7d = Carbon::now()->subDays(7);
         $sub30d = Carbon::now()->subDays(30);
 
-        // ============ THỐNG KÊ NHANH ============
-        $revenueToday = Order::where('status', 'Completed')->whereDate('created_at', $today)->sum('total_amount');
+        // ============ DATE RANGE FOR CHARTS & STATS ============
+        $startDate = $request->input('start_date', Carbon::now()->subDays(13)->format('Y-m-d'));
+        $endDate = $request->input('end_date', Carbon::now()->format('Y-m-d'));
+        $start = Carbon::parse($startDate)->startOfDay();
+        $end = Carbon::parse($endDate)->endOfDay();
+
+        // ============ THỐNG KÊ NHANH (theo khoảng thời gian) ============
+        $totalRevenue = Order::where('status', 'Completed')->whereBetween('created_at', [$start, $end])->sum('total_amount');
+        $totalOrders = Order::whereBetween('created_at', [$start, $end])->count();
+        $totalUsers = Player::whereBetween('created_at', [$start, $end])->count();
+        $errorKeys = GameKey::where('status', '!=', 'Sold')
+            ->where('status', '!=', 'Giveaway')
+            ->where('status', '!=', 'Available')
+            ->count();
         $revenueWeek = Order::where('status', 'Completed')->where('created_at', '>=', $startOfWeek)->sum('total_amount');
         $revenueMonth = Order::where('status', 'Completed')->where('created_at', '>=', $startOfMonth)->sum('total_amount');
-        $revenueYear = Order::where('status', 'Completed')->where('created_at', '>=', $startOfYear)->sum('total_amount');
-
-        $orders24h = Order::where('created_at', '>=', $sub24h)->count();
-        $orders24hSuccess = Order::where('status', 'Completed')->where('created_at', '>=', $sub24h)->count();
-        $orders24hPending = Order::where('status', 'Pending')->where('created_at', '>=', $sub24h)->count();
 
         $newUsers = Player::where('created_at', '>=', $sub24h)->count();
-        $totalUsers = Player::count();
-
-        $apiErrors = Order::where('status', 'API_Error')->count();
-
         $recentOrders = Order::with('player')->orderBy('created_at', 'desc')->take(5)->get();
-
-        $totalOrders = Order::count();
-        $totalRevenue = Order::where('status', 'Completed')->sum('total_amount');
-        $totalKeysSold = GameKey::where('status', 'Sold')->count();
 
         // ============ TOP GAME BÁN CHẠY ============
         $topGames = GameKey::select(
@@ -74,8 +73,6 @@ class DashboardController extends Controller
             });
 
         // ============ DATE RANGE FOR CHARTS ============
-        $startDate = $request->input('start_date', Carbon::now()->subDays(13)->format('Y-m-d'));
-        $endDate = $request->input('end_date', Carbon::now()->format('Y-m-d'));
         $dateRange = CarbonPeriod::create($startDate, $endDate);
 
         // ------------------- CHART 1: DOANH THU -------------------
@@ -181,12 +178,11 @@ class DashboardController extends Controller
             ->withQueryString();
 
         return view('Admins.dashboard', compact(
-            'revenueToday', 'revenueWeek', 'revenueMonth', 'revenueYear',
-            'orders24h', 'orders24hSuccess', 'orders24hPending',
+            'revenueWeek', 'revenueMonth',
             'newUsers', 'totalUsers',
-            'apiErrors',
+            'errorKeys',
             'recentOrders',
-            'totalOrders', 'totalRevenue', 'totalKeysSold',
+            'totalOrders', 'totalRevenue',
             'startDate', 'endDate',
             'topGames',
             'chart1Labels', 'chart1Revenue', 'chart1Orders',

@@ -1,3 +1,4 @@
+
 @extends('Admins.layouts.admin')
 
 @section('title', 'Chỉnh Sửa Game - GameKey')
@@ -107,7 +108,9 @@
                                         <span class="badge bg-dark position-absolute top-0 end-0 m-2">{{ $img->game_part }}</span>
                                     </div>
                                     <div class="card-body p-2 text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-danger w-100"><i class="fas fa-trash me-1"></i> Xóa ảnh này</button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="deleteImage({{ $img->id }}, this)">
+                                            <i class="fas fa-trash me-1"></i> Xóa ảnh này
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -156,6 +159,33 @@
 </div>
 
 <script>
+    function deleteImage(imageId, button) {
+        if (!confirm('Bạn có chắc muốn xóa ảnh này?')) return;
+
+        fetch('{{ route("admin.games.destroyImage", "") }}/' + imageId, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json',
+            }
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.reload();
+                return;
+            }
+            if (!response.ok) {
+                throw new Error('Lỗi khi xóa ảnh');
+            }
+            // Xóa card ảnh khỏi giao diện
+            const card = button.closest('.col-md-4');
+            if (card) card.remove();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('image-upload-container');
         const addBtn = document.getElementById('add-more-image-btn');

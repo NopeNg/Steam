@@ -58,7 +58,7 @@
                     </div>
                 </div>
 
-                <div class="card border-0 shadow-sm rounded-3">
+                <div class="card border-0 shadow-sm rounded-3 mb-4">
                     <div class="card-body p-4">
                         <h5 class="fw-bold text-primary mb-3"><i class="fas fa-cogs me-2"></i>Xử lý đơn hàng</h5>
                         
@@ -100,6 +100,64 @@
 
                     </div>
                 </div>
+
+                {{-- Thu hồi key --}}
+                @if(in_array($order->status, ['Completed', 'API_Error']))
+                    @php
+                        $deliverableKeys = $order->orderItems->flatMap(function($item) {
+                            return $item->gameKeys->whereIn('status', ['Delivered', 'Activated']);
+                        });
+                    @endphp
+                    @if($deliverableKeys->isNotEmpty())
+                        <div class="card border-0 shadow-sm rounded-3">
+                            <div class="card-body p-4">
+                                <h5 class="fw-bold text-danger mb-3"><i class="fas fa-ban me-2"></i>Thu hồi Key</h5>
+                                @foreach($deliverableKeys as $key)
+                                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-dark rounded border border-gray-700">
+                                        <div>
+                                            <small class="text-muted d-block">Key: <span class="text-info">{{ $key->key_code }}</span></small>
+                                            @if($key->orderItem->gameVersion && $key->orderItem->gameVersion->game)
+                                                <small class="text-muted">{{ $key->orderItem->gameVersion->game->name }} ({{ $key->orderItem->gameVersion->version_name }})</small>
+                                            @endif
+                                        </div>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#revokeKeyModal{{ $key->id }}">
+                                            <i class="fas fa-trash-alt me-1"></i> Thu hồi
+                                        </button>
+                                    </div>
+
+                                    {{-- Modal nhập lý do thu hồi --}}
+                                    <div class="modal fade" id="revokeKeyModal{{ $key->id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content bg-dark text-white border-secondary">
+                                                <div class="modal-header border-secondary">
+                                                    <h5 class="modal-title fw-bold text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Thu hồi Key</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <form action="{{ route('admin.keys.revoke', $key->id) }}" method="POST">
+                                                    @csrf
+                                                    <div class="modal-body">
+                                                        <p class="text-warning small mb-3">
+                                                            <i class="fas fa-info-circle me-1"></i> 
+                                                            Thu hồi key: <strong class="text-info">{{ $key->key_code }}</strong>
+                                                        </p>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small text-muted fw-bold">Lý do thu hồi <span class="text-danger">*</span></label>
+                                                            <textarea name="revoke_reason" class="form-control bg-transparent text-white border-secondary" rows="3" required placeholder="Nhập lý do thu hồi key này..."></textarea>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer border-secondary">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                        <button type="submit" class="btn btn-danger fw-bold">Xác nhận thu hồi</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                @endif
             </div>
 
             <div class="col-12 col-lg-8">

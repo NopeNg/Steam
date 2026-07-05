@@ -84,6 +84,7 @@ Route::post('/cart/validate', [App\Http\Controllers\Players\CartController::clas
         Route::get('/', [GiftController::class, 'index'])->name('gifts.index');
         Route::get('/send/{friend_id}', [GiftController::class, 'showSendForm'])->name('gifts.showSendForm');
         Route::post('/accept/{id}', [GiftController::class, 'accept'])->name('gifts.accept');
+        Route::post('/reject/{id}', [GiftController::class, 'reject'])->name('gifts.reject');
         Route::post('/send', [GiftController::class, 'send'])->name('gifts.send');
     });
 });
@@ -122,6 +123,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('players')->name('players.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admins\PlayerController::class, 'index'])->name('index');
             Route::put('/{id}/toggle', [\App\Http\Controllers\Admins\PlayerController::class, 'toggleStatus'])->name('toggle');
+            Route::get('/{id}/revoked-games', [\App\Http\Controllers\Admins\PlayerController::class, 'revokedGames'])->name('revoked');
         });
 
         Route::prefix('promotions')->name('promotions.')->group(function () {

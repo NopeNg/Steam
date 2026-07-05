@@ -28,7 +28,7 @@ class GiftController extends Controller implements HasMiddleware
         $myGames = \App\Models\Library::with(['gameKey.orderItem.version.game'])
             ->where('player_id', $myId)
             ->whereHas('gameKey', function($q) {
-                $q->whereIn('status', ['Delivered', 'Activated']);
+                $q->whereIn('status', ['Pending', 'Giveaway', 'Delivered']);
             })
             ->get()
             ->map(function($lib) {
@@ -68,7 +68,7 @@ class GiftController extends Controller implements HasMiddleware
             return back()->with('error', 'Mã quà tặng này đã được gửi đi trước đó.');
         }
 
-        // 3. Tạo bản ghi
+        // 3. Tạo bản ghi quà tặng (giữ game trong thư viện người gửi, chỉ gửi key sang hộp quà người nhận)
         Gift::create([
             'sender_id' => $myId,
             'receiver_id' => $request->friend_id,
@@ -87,7 +87,7 @@ class GiftController extends Controller implements HasMiddleware
             ->join('game_versions', 'order_items.game_version_id', '=', 'game_versions.id')
             ->join('games', 'game_versions.game_id', '=', 'games.id')
             ->join('players as senders', 'gifts.sender_id', '=', 'senders.id')
-            ->select('gifts.*', 'games.name as game_name', 'senders.username as sender_name')
+            ->select('gifts.*', 'games.name as game_name', 'games.cover_image', 'senders.username as sender_name')
             ->get();
 
         return view('Players.social.gifts', compact('gifts'));

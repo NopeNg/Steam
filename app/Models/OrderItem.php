@@ -31,4 +31,9 @@ class OrderItem extends Model
     {
         return $this->belongsTo(GameVersion::class, 'game_version_id');
     }
+
+    public function gameKeys()
+    {
+        return $this->hasMany(GameKey::class, 'order_item_id');
+    }
 }

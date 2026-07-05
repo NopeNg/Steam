@@ -1,5 +1,6 @@
 @php
-    $gameKey   = $item->gameKey;
+    // Hỗ trợ cả Library model (có gameKey relationship) và GameKey model trực tiếp
+    $gameKey   = $item->gameKey ?? (isset($item->status) ? $item : null);
     $orderItem = $gameKey ? $gameKey->orderItem : null;
     $version   = $orderItem ? $orderItem->version : null;
     $game      = $version ? $version->game : null;
@@ -25,25 +26,28 @@
     $isActivated = ($gameKey && $gameKey->status === 'Activated');
     $isPending = ($gameKey && $gameKey->status === 'Pending');
     $isGiveaway = ($gameKey && $gameKey->status === 'Giveaway');
+    $isGifted  = ($gameKey && \App\Models\Gift::where('game_key_id', $gameKey->id)->where('sender_id', auth('player')->id())->whereIn('status', ['Sent', 'Accepted'])->exists());
+    $isGiftBadge = $isGifted || $type === 'Gift';
+    $badgeClass = $isGiftBadge ? 'bg-blue-600/80 text-white border-blue-600' : 
+        ($type === 'Giveaway' ? 'bg-purple-600/80 text-white border-purple-600' :
+        ($type === 'Other' ? 'bg-amber-600/80 text-white border-amber-600' : 
+        'bg-emerald-600/80 text-white border-emerald-600'));
+    $badgeText = $isGiftBadge ? 'GIFT' : ($type === 'Giveaway' ? 'SỰ KIỆN' : strtoupper($type));
     $versionName = $version ? $version->version_name : ($item->version_id ? 'Version #'.$item->version_id : 'N/A');
     $purchasedAt = $item->purchased_at ? \Carbon\Carbon::parse($item->purchased_at)->format('d/m/Y H:i') : ($order ? $order->created_at->format('d/m/Y H:i') : 'N/A');
 @endphp
 
 @if($game)
-<div class="bg-[#171a21] border border-gray-800 rounded-sm overflow-hidden transition-all hover:border-gray-600 group {{ $gameKey->status !== 'Revoked' ? 'cursor-pointer' : 'opacity-60' }}" 
-     {{ $gameKey->status !== 'Revoked' ? 'onclick=openKeyModal(\''.$gameKey->key_code.'\',\''.$gameKey->id.'\')' : '' }}>
+<div class="bg-[#171a21] border border-gray-800 rounded-sm overflow-hidden transition-all hover:border-gray-600 group {{ ($isGifted || $type === 'Gift') ? '' : 'cursor-pointer' }}" 
+     onclick="{{ ($isGifted || $type === 'Gift') ? '' : ($gameKey->status === 'Revoked' ? 'openRevokeReasonModal(\''.$gameKey->id.'\')' : 'openKeyModal(\''.$gameKey->key_code.'\',\''.$gameKey->id.'\')') }}">
     {{-- Cover ảnh trên --}}
     <div class="h-36 overflow-hidden relative">
         <img src="{{ $game->cover_image ?? 'https://via.placeholder.com/300x150' }}" 
              class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500" alt="{{ $game->name }}">
-        {{-- Badge góc trên phải --}}
-        <span class="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded border font-bold
-            {{ $type === 'Gift' ? 'bg-blue-600/80 text-white border-blue-600' : 
-               ($type === 'Giveaway' ? 'bg-purple-600/80 text-white border-purple-600' :
-               ($type === 'Other' ? 'bg-amber-600/80 text-white border-amber-600' : 
-               'bg-emerald-600/80 text-white border-emerald-600')) }}">
-            {{ $type === 'Giveaway' ? 'SỰ KIỆN' : strtoupper($type) }}
-        </span>
+    {{-- Badge góc trên phải --}}
+    <span class="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded border font-bold {{ $badgeClass }}">
+        {{ $badgeText }}
+    </span>
     </div>
 
     {{-- Thông tin bên dưới --}}
@@ -66,8 +70,8 @@
                 <span class="text-gray-400 text-[11px]">{{ $gameKey->status ?? 'Unknown' }}</span>
             @endif
 
-            {{-- Chỉ hiển thị nút KÍCH HOẠT khi cần --}}
-            @if(($isPending || $isGiveaway) && !$isOwned)
+            {{-- Chỉ hiển thị nút KÍCH HOẠT khi cần - ẩn nếu là Gift --}}
+            @if(($isPending || $isGiveaway) && !$isOwned && !$isGifted && $type !== 'Gift')
                 <button onclick="event.stopPropagation(); openActivateModal('{{ $gameKey->key_code }}', '{{ $game->name }}')" 
                         class="bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 font-bold rounded-xs uppercase text-[10px] transition-colors">
                     KÍCH HOẠT
@@ -75,6 +79,34 @@
             @elseif($isOwned)
                 <span class="text-[9px] text-orange-500 font-bold uppercase italic">Đã sở hữu</span>
             @endif
+        </div>
+    </div>
+</div>
+
+{{-- Modal Lý do thu hồi --}}
+<div id="revoke-reason-modal-{{ $gameKey->id }}" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="absolute inset-0 bg-black/70" onclick="closeRevokeReasonModal('{{ $gameKey->id }}')"></div>
+    <div class="bg-[#1b2838] border border-red-500 p-6 rounded-sm shadow-2xl max-w-md w-full mx-4 relative z-10">
+        <div class="text-center">
+            <div class="mb-4 flex justify-center">
+                <i class="fas fa-exclamation-triangle text-red-500 text-4xl"></i>
+            </div>
+            <h2 class="text-red-500 text-lg font-bold mb-3">Key Đã Bị Thu Hồi</h2>
+            <div class="bg-[#101822] border border-gray-700 p-4 rounded mb-4 text-left">
+                <p class="text-gray-400 text-[10px] mb-1">Game:</p>
+                <p class="text-white font-bold text-xs mb-3">{{ $game->name }}</p>
+                <p class="text-gray-400 text-[10px] mb-1">Lý do thu hồi:</p>
+                @php
+                    $revokeReason = $gameKey->supplier_transaction_id && str_starts_with($gameKey->supplier_transaction_id, 'REVOKE: ') 
+                        ? substr($gameKey->supplier_transaction_id, 8) 
+                        : 'Không có thông tin';
+                @endphp
+                <p class="text-red-400 text-sm font-bold break-words">{{ $revokeReason }}</p>
+            </div>
+            <button onclick="closeRevokeReasonModal('{{ $gameKey->id }}')" 
+                    class="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded text-xs font-bold transition-colors">
+                Đã hiểu
+            </button>
         </div>
     </div>
 </div>
@@ -212,6 +244,18 @@ if (typeof copyKeyFromModal !== 'function') {
             const msg = document.getElementById('modal-copy-msg-' + id);
             if (msg) { msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 2000); }
         });
+    }
+}
+if (typeof openRevokeReasonModal !== 'function') {
+    function openRevokeReasonModal(id) {
+        const m = document.getElementById('revoke-reason-modal-' + id);
+        if (m) m.classList.remove('hidden');
+    }
+}
+if (typeof closeRevokeReasonModal !== 'function') {
+    function closeRevokeReasonModal(id) {
+        const m = document.getElementById('revoke-reason-modal-' + id);
+        if (m) m.classList.add('hidden');
     }
 }
 </script>

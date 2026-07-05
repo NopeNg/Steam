@@ -1,0 +1,1 @@
+// Bootstrap JS (placeholder for Vite build compatibility)

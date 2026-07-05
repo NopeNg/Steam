@@ -132,7 +132,9 @@
 
                     <div class="flex items-center space-x-4 w-full md:w-auto justify-end">
                         <div class="bg-[#101822] px-3 py-1.5 rounded-sm flex items-center">
-                            @if($version->discount_price)
+                            @if($version->price == 0)
+                                <span class="text-[#beee11] text-sm font-bold px-2">Miễn phí</span>
+                            @elseif($version->discount_price && $version->price > 0)
                                 @php 
                                     $percent = round((($version->price - $version->discount_price) / $version->price) * 100);
                                 @endphp

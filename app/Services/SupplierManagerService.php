@@ -17,12 +17,11 @@ class SupplierManagerService
      */
     public function purchaseKeys(int $gameId, int $quantity = 1, ?string $customerEmail = null): array
     {
-        // Lấy tất cả supplier mapping Active cho game này, sắp xếp priority giảm dần
-        $mappings = GameSupplierMapping::where('game_id', $gameId)
-            ->where('status', 'Active')
+        // Lấy tất cả supplier mapping Active cho game này
+        $mappings = GameSupplierMapping::where('game_supplier_mappings.game_id', $gameId)
+            ->where('game_supplier_mappings.status', 'Active')
             ->whereHas('supplierProvider', fn($q) => $q->where('status', 'Active'))
             ->with('supplierProvider')
-            ->orderByRaw('(SELECT priority FROM supplier_providers WHERE id = game_supplier_mappings.supplier_provider_id) DESC')
             ->get();
 
         if ($mappings->isEmpty()) {
@@ -34,36 +33,69 @@ class SupplierManagerService
             ];
         }
 
-        $lastError = null;
+        // Sắp xếp bằng PHP: supplier có priority CAO hơn (số lớn hơn) được ưu tiên trước
+        $mappings = $mappings->sortByDesc(fn($m) => $m->supplierProvider?->priority ?? 0)->values();
 
-        foreach ($mappings as $mapping) {
+        $lastError = null;
+        $failedSuppliers = [];
+        $fallbackChain = [];
+
+        foreach ($mappings as $index => $mapping) {
             $provider = $mapping->supplierProvider;
 
-            Log::info('[SupplierManager] Trying supplier: ' . $provider->name . ' for game #' . $gameId);
+            if (!$provider) {
+                Log::warning('[SupplierManager] Mapping has no provider, skipping (mapping_id=' . $mapping->id . ')');
+                continue;
+            }
+
+            Log::info('[SupplierManager] Trying supplier: ' . $provider->name . ' (code=' . $provider->code . ', priority=' . $provider->priority . ') for game #' . $gameId);
 
             $result = $this->callSupplierApi($provider, $mapping->supplier_game_id ?? $gameId, $quantity, $customerEmail);
 
             if ($result['success']) {
-                Log::info('[SupplierManager] Success with: ' . $provider->name);
+                Log::info('[SupplierManager] Success with: ' . $provider->name . ' (priority=' . $provider->priority . ')');
                 return [
                     'success' => true,
                     'keys' => $result['keys'],
                     'transaction_id' => $result['transaction_id'],
                     'supplier_name' => $provider->name,
                     'supplier_code' => $provider->code,
+                    'fallback_chain' => $fallbackChain,
                 ];
             }
 
+            // Ghi lỗi chi tiết cho supplier hiện tại
             $lastError = $result['error'];
-            Log::warning('[SupplierManager] ' . $provider->name . ' failed: ' . $result['error'] . ' - Trying next supplier...');
+            $failedInfo = [
+                'supplier' => $provider->name,
+                'priority' => $provider->priority,
+                'error' => $result['error'],
+                'error_code' => $result['error_code'] ?? 'N/A',
+            ];
+            $failedSuppliers[] = $failedInfo;
+            $fallbackChain[] = $provider->name . ' (priority=' . $provider->priority . ') - FAILED: ' . $result['error'];
+
+            Log::warning('[SupplierManager] Supplier "' . $provider->name . '" (priority=' . $provider->priority . ') FAILED for game #' . $gameId . ': ' . $result['error'] . ' (error_code: ' . ($result['error_code'] ?? 'N/A') . ')');
+
+            // Xác định supplier tiếp theo để ghi log fallback
+            if (isset($mappings[$index + 1])) {
+                $nextProvider = $mappings[$index + 1]->supplierProvider;
+                if ($nextProvider) {
+                    Log::warning('[SupplierManager] Falling back from "' . $provider->name . '" (priority=' . $provider->priority . ') to "' . $nextProvider->name . '" (priority=' . $nextProvider->priority . ') for game #' . $gameId);
+                }
+            } else {
+                Log::error('[SupplierManager] No more suppliers to fallback for game #' . $gameId);
+            }
         }
 
         // Tất cả supplier đều fail
-        Log::error('[SupplierManager] All suppliers failed for game #' . $gameId);
+        Log::error('[SupplierManager] ALL ' . count($failedSuppliers) . ' suppliers failed for game #' . $gameId . '. Chain: ' . implode(' -> ', array_column($failedSuppliers, 'supplier')));
         return [
             'success' => false,
             'error' => $lastError ?? 'All suppliers failed',
             'error_code' => 'ALL_SUPPLIERS_FAILED',
+            'failed_suppliers' => array_column($failedSuppliers, 'supplier'),
+            'fallback_chain' => $fallbackChain,
         ];
     }
 

@@ -77,7 +77,8 @@ class OrderController extends Controller implements HasMiddleware
                 'total_amount' => $total,
                 'order_type' => $request->order_type,
                 'status' => 'Pending',
-                'payment_method' => $request->payment_method ?? 'VNPAY'
+                'payment_method' => $request->payment_method ?? 'VNPAY',
+                'friend_id' => $request->order_type === 'Gift' ? $request->friend_id : null,
             ]);
 
             $hasAnyPersonalGame = false;
@@ -157,6 +158,8 @@ class OrderController extends Controller implements HasMiddleware
                 $lastError = null;
                 $createdGameKeyIds = [];
                 $createdLibraryIds = [];
+                $usedSupplierNames = [];
+                $allFallbackChains = [];
 
                 foreach ($order->orderItems as $item) {
                     $gameId = $item->version->game_id;
@@ -167,6 +170,14 @@ class OrderController extends Controller implements HasMiddleware
 
                     if ($result['success']) {
                         $lastSupplierCode = $result['supplier_code'] ?? 'UNKNOWN';
+                        $supplierName = $result['supplier_name'] ?? 'Unknown';
+                        $usedSupplierNames[] = $supplierName;
+                        $itemFallbackChain = $result['fallback_chain'] ?? [];
+                        if (!empty($itemFallbackChain)) {
+                            foreach ($itemFallbackChain as $fb) {
+                                $allFallbackChains[] = $fb;
+                            }
+                        }
 
                         $gameKeyIds = [];
                         foreach ($result['keys'] as $keyCode) {
@@ -182,7 +193,20 @@ class OrderController extends Controller implements HasMiddleware
                             $createdGameKeyIds[] = $gameKey->id;
                         }
 
-                        // Nếu là Gift order → tạo Gift record (không tạo Library cho người mua)
+                        // Tạo Library cho người mua (với cả Gift để hiển thị trong thư viện nhưng không lưu key)
+                        if (!empty($gameKeyIds)) {
+                            $lib = Library::create([
+                                'player_id' => $playerId,
+                                'game_key_id' => $gameKeyIds[0],
+                                'game_id' => $gameId,
+                                'key_code' => $order->order_type === 'Gift' ? '' : ($result['keys'][0] ?? ''),
+                                'version_id' => $item->game_version_id,
+                                'order_item_id' => $item->id,
+                            ]);
+                            $createdLibraryIds[] = $lib->id;
+                        }
+
+                        // Nếu là Gift order → tạo thêm Gift record để gửi cho bạn
                         if ($order->order_type === 'Gift' && $order->friend_id && !empty($gameKeyIds)) {
                             $gift = \App\Models\Gift::create([
                                 'sender_id' => $playerId,
@@ -191,26 +215,26 @@ class OrderController extends Controller implements HasMiddleware
                                 'status' => 'Sent'
                             ]);
                         }
-                        // Nếu là Personal/Other → tạo Library cho người mua
-                        elseif (!empty($gameKeyIds)) {
-                            $lib = Library::create([
-                                'player_id' => $playerId,
-                                'game_key_id' => $gameKeyIds[0],
-                                'game_id' => $gameId,
-                                'key_code' => $result['keys'][0] ?? '',
-                                'version_id' => $item->game_version_id,
-                                'order_item_id' => $item->id,
-                            ]);
-                            $createdLibraryIds[] = $lib->id;
-                        }
                     } else {
                         $hasApiError = true;
                         $lastError = $result['error'];
-                        Log::error('[Order] All suppliers failed for order #' . $order->id, [
-                            'game_id' => $gameId,
-                            'error' => $result['error'],
-                            'error_code' => $result['error_code'] ?? '',
-                        ]);
+                        $failedSuppliers = $result['failed_suppliers'] ?? [];
+                        
+                        // Thông báo chi tiết supplier nào fail
+                        if (!empty($failedSuppliers)) {
+                            Log::error('[Order] All suppliers FAILED for order #' . $order->id . ' - game_id=' . $gameId, [
+                                'game_id' => $gameId,
+                                'failed_suppliers' => implode(', ', $failedSuppliers),
+                                'last_error' => $result['error'],
+                                'error_code' => $result['error_code'] ?? '',
+                            ]);
+                        } else {
+                            Log::error('[Order] Supplier failed for order #' . $order->id, [
+                                'game_id' => $gameId,
+                                'error' => $result['error'],
+                                'error_code' => $result['error_code'] ?? '',
+                            ]);
+                        }
                         
                         // 🔥 Nếu có lỗi, xóa toàn bộ GameKey và Library đã tạo trước đó để rollback
                         if (!empty($createdGameKeyIds)) {
@@ -221,14 +245,27 @@ class OrderController extends Controller implements HasMiddleware
                         }
                         
                         // Throw exception để rollback toàn bộ transaction
-                        throw new \Exception('Supplier failed: ' . ($lastError ?? 'Unknown error'));
+                        $errorMsg = 'Supplier failed';
+                        if (!empty($failedSuppliers)) {
+                            $errorMsg = 'Suppliers [' . implode(', ', $failedSuppliers) . '] all failed';
+                        }
+                        throw new \Exception($errorMsg . ': ' . ($lastError ?? 'Unknown error'));
                     }
                 }
 
                 // Tất cả đều thành công
                 $order->update(['status' => 'Completed']);
                 
-                session()->flash('success', 'Thanh toán thành công! Trò chơi đã được thêm vào thư viện.');
+                $uniqueSuppliers = array_unique($usedSupplierNames);
+                $supplierListStr = implode(', ', $uniqueSuppliers);
+                
+                // Nếu có fallback chain (supplier ưu tiên cao hơn bị lỗi), thêm vào flash
+                $fallbackMsg = '';
+                if (!empty($allFallbackChains)) {
+                    $fallbackMsg = ' (Đã chuyển từ: ' . implode(' → ', $allFallbackChains) . ')';
+                }
+                
+                session()->flash('success', 'Thanh toán thành công! Trò chơi đã được thêm vào thư viện. (Nhà cung cấp: ' . $supplierListStr . ')' . $fallbackMsg);
                 return response()->json(['redirect_url' => route('library.index')]);
             });
         } catch (\Exception $e) {

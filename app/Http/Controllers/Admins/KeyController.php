@@ -78,8 +78,14 @@ class KeyController extends Controller
      * - Xóa Library record của key đó để người chơi không thấy key nữa
      * - Cho phép người chơi mua game đó lại
      */
-    public function revoke($id)
+    public function revoke(Request $request, $id)
     {
+        $request->validate([
+            'revoke_reason' => 'required|string|max:1000',
+        ], [
+            'revoke_reason.required' => 'Vui lòng nhập lý do thu hồi key.',
+        ]);
+
         $gameKey = GameKey::with('orderItem.version.game')->findOrFail($id);
 
         if ($gameKey->status === 'Revoked') {
@@ -92,15 +98,15 @@ class KeyController extends Controller
 
         $gameName = $gameKey->orderItem->version->game->name ?? 'N/A';
 
-        DB::transaction(function () use ($gameKey) {
-            // 1. Đánh dấu key là Revoked
-            $gameKey->update(['status' => 'Revoked']);
-
-            // 2. Xóa Library record của key này để người chơi không thấy trong thư viện
-            Library::where('game_key_id', $gameKey->id)->delete();
+        DB::transaction(function () use ($gameKey, $request) {
+            // Đánh dấu key là Revoked và lưu lý do vào supplier_transaction_id
+            $gameKey->update([
+                'status' => 'Revoked',
+                'supplier_transaction_id' => 'REVOKE: ' . $request->revoke_reason,
+            ]);
         });
 
-        $this->activityLog->log('Thu hồi key', 'Đã thu hồi key (ID: ' . $gameKey->id . ') của game "' . $gameName . '"');
+        $this->activityLog->log('Thu hồi key', 'Đã thu hồi key (ID: ' . $gameKey->id . ') của game "' . $gameName . '", lý do: ' . $request->revoke_reason);
 
         return back()->with('success', 'Đã thu hồi key của game "' . $gameName . '" thành công! Người chơi sẽ không còn thấy key này trong thư viện và có thể mua lại.');
     }
