@@ -80,13 +80,13 @@
                         </form>
 
                         @if($order->status == 'API_Error')
-                            <div class="mt-4 p-3 bg-dark border border-warning rounded">
-                                <h6 class="text-warning fw-bold mb-2"><i class="fas fa-exclamation-triangle"></i> Hướng dẫn xử lý</h6>
-                                <small class="text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Khi đơn hàng ở trạng thái "lỗi Key", bạn có thể xử lý từng key riêng lẻ ở phần <strong>"Danh sách Key trong đơn"</strong> bên dưới với các tùy chọn: <strong>Đổi key</strong> (cấp key mới thay thế), <strong>Hoàn tiền</strong> (hoàn tiền key đó vào ví), hoặc <strong>Thu hồi</strong> (vô hiệu hóa key).
-                                </small>
-                            </div>
+                        <hr class="border-secondary">
+                        <form action="{{ route('admin.orders.refund', $order->id) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn-success w-100 fw-bold btn-sm" onclick="return confirm('Xác nhận hoàn tiền toàn bộ đơn hàng #ORD-{{ $order->id }}? Số tiền {{ number_format($order->total_amount, 0, ',', '.') }}đ sẽ được hoàn vào ví người chơi.')">
+                                <i class="fas fa-undo me-1"></i> Hoàn tiền toàn bộ đơn hàng
+                            </button>
+                        </form>
                         @endif
 
                     </div>
@@ -105,11 +105,17 @@
                             <div class="card-body p-4">
                                 <h5 class="fw-bold mb-3"><i class="fas fa-key me-2 text-info"></i>Danh sách Key trong đơn</h5>
                                 @foreach($deliverableKeys as $key)
+                                @php
+                                    $isReplaced = str_starts_with($key->supplier_transaction_id ?? '', 'REPLACED:');
+                                @endphp
                                 <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-dark rounded border border-gray-700">
                                     <div>
                                         <small class="text-muted d-block">Key: <span class="text-info">{{ $key->key_code }}</span></small>
                                         @if($key->orderItem->gameVersion && $key->orderItem->gameVersion->game)
                                             <small class="text-muted">{{ $key->orderItem->gameVersion->game->name }} ({{ $key->orderItem->gameVersion->version_name }})</small>
+                                        @endif
+                                        @if($isReplaced)
+                                            <br><small class="text-warning"><i class="fas fa-exchange-alt me-1"></i>Đã được đổi key</small>
                                         @endif
                                     </div>
                                     <div class="d-flex gap-1">
@@ -117,13 +123,17 @@
                                         <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#replaceKeyModal{{ $key->id }}">
                                             <i class="fas fa-exchange-alt me-1"></i> Đổi key
                                         </button>
+                                        @if(!$isReplaced)
                                         <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#refundKeyModal{{ $key->id }}">
                                             <i class="fas fa-undo me-1"></i> Hoàn tiền
                                         </button>
                                         @endif
+                                        @endif
+                                        @if($order->status != 'API_Error')
                                         <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#revokeKeyModal{{ $key->id }}">
                                             <i class="fas fa-trash-alt me-1"></i> Thu hồi
                                         </button>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -207,7 +217,7 @@
                                                         </p>
                                                         @if($key->orderItem)
                                                             @php
-                                                                $refundAmount = $key->orderItem->price_at_purchase / ($key->orderItem->quantity ?? 1);
+                                                                $refundAmount = $key->orderItem->price_at_purchase ;
                                                             @endphp
                                                             <p class="small mb-2">Số tiền hoàn: <strong class="text-success">{{ number_format($refundAmount, 0, ',', '.') }}đ</strong></p>
                                                         @endif

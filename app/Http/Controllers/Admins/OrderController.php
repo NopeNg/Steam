@@ -77,9 +77,8 @@ class OrderController extends Controller
             return back()->withErrors(['error' => 'Chỉ có thể hoàn tiền cho đơn hàng bị lỗi API.']);
         }
 
-        // Kiểm tra đã hoàn tiền trước đó chưa (chống double refund)
-        $alreadyRefunded = \App\Models\WalletTransaction::where('transaction_code', 'REFUND_ORD_' . $order->id)->exists();
-        if ($alreadyRefunded) {
+        // Kiểm tra đã hoàn tiền trước đó chưa (chống double refund) - dựa vào status Cancelled
+        if ($order->status === 'Cancelled') {
             return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền trước đó. Không thể hoàn tiền lần nữa.']);
         }
 
@@ -92,18 +91,9 @@ class OrderController extends Controller
             return back()->withErrors(['error' => 'Đơn hàng này đã được cấp key. Không thể hoàn tiền sau khi đã cấp key.']);
         }
 
-        $oldStatus = $order->status;
-
         \Illuminate\Support\Facades\DB::transaction(function () use ($order) {
             $order->player->increment('balance', $order->total_amount);
             $order->update(['status' => 'Cancelled']);
-
-            \App\Models\WalletTransaction::create([
-                'player_id' => $order->player_id,
-                'amount' => $order->total_amount,
-                'transaction_code' => 'REFUND_ORD_' . $order->id,
-                'status' => 'success'
-            ]);
         });
 
         $this->activityLog->log('Hoàn tiền đơn hàng', 'Đã hoàn ' . number_format($order->total_amount) . ' VNĐ cho đơn hàng #' . $order->id . ' (người chơi ID: ' . $order->player_id . ')');
@@ -122,9 +112,8 @@ class OrderController extends Controller
             return back()->withErrors(['error' => 'Chỉ có thể cấp Key thủ công cho đơn lỗi API.']);
         }
 
-        // Kiểm tra đã hoàn tiền chưa
-        $alreadyRefunded = \App\Models\WalletTransaction::where('transaction_code', 'REFUND_ORD_' . $order->id)->exists();
-        if ($alreadyRefunded) {
+        // Kiểm tra đã hoàn tiền chưa (dựa vào status Cancelled)
+        if ($order->status === 'Cancelled') {
             return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền. Không thể cấp key sau khi hoàn tiền.']);
         }
 
