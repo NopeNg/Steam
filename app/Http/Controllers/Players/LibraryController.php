@@ -43,11 +43,18 @@ class LibraryController extends Controller implements HasMiddleware
         ->get();
 
         // 4. Các game khác (ví dụ: Pending, Delivered) vẫn lấy từ Library
+        // 4. Các game khác (ví dụ: Pending, Delivered) vẫn lấy từ Library
         $inactiveGames = $allLibraries->filter(fn($lib) => 
             $lib->gameKey && !in_array($lib->gameKey->status, ['Activated', 'Revoked'])
         );
 
-        $activatedGameIds = $activeGames->pluck('gameKey.orderItem.version.game_id')->unique()->toArray();
+        $activatedGameIds = $activeGames->map(function($lib) {
+            // Ưu tiên lấy game_id từ quan hệ gameKey -> orderItem -> version
+            // Nếu không có (trường hợp Giveaway, Redeem), fallback về game_id của Library
+            return $lib->gameKey && $lib->gameKey->orderItem && $lib->gameKey->orderItem->version
+                ? $lib->gameKey->orderItem->version->game_id
+                : $lib->game_id;
+        })->filter()->unique()->toArray();
 
         return view('Players.library.index', compact('activeGames', 'inactiveGames', 'revokedGames', 'activatedGameIds'));
     }

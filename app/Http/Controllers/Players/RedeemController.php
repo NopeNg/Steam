@@ -52,10 +52,19 @@ class RedeemController extends Controller implements HasMiddleware
     /**
      * Logic riêng cho Key dạng Giveaway (Thêm mới GameKey và tạo record vào Library).
      */
+/**
+     * Logic riêng cho Key dạng Giveaway (Chỉ cập nhật mã có sẵn và tạo record vào Library).
+     */
     private function processGiveaway(GameKey $gameKey) 
     {
         $playerId = Auth::guard('player')->id();
+        
+        // Vì Admin đã điền sẵn game_version_id lúc tạo Key, ta lấy trực tiếp từ $gameKey luôn
         $version = GameVersion::with('game')->find($gameKey->game_version_id);
+
+        if (!$version) {
+            return back()->with('error', 'Phiên bản game đính kèm mã này không tồn tại.');
+        }
 
         // 1. CHẶN TRÙNG: Kiểm tra xem người chơi đã sở hữu game này trong thư viện chưa
         $alreadyOwned = Library::where('player_id', $playerId)
@@ -63,34 +72,27 @@ class RedeemController extends Controller implements HasMiddleware
                                ->exists();
 
         if ($alreadyOwned) {
-            return back()->with('error', 'Bạn đã sở hữu trò chơi "' . $version->game->title . '" này rồi, không thể kích hoạt thêm mã Giveaway.');
+            return back()->with('error', 'Bạn đã sở hữu trò chơi "' . $version->game->name . '" này rồi, không thể kích hoạt thêm mã Giveaway.');
         }
 
         // 2. TIẾN HÀNH ĐỒNG BỘ CẢ 2 BẢNG TRONG TRANSACTION
         DB::transaction(function () use ($gameKey, $playerId, $version) {
             
-            // 👉 Tác động bảng GAME_KEYS: TẠO MỚI bản ghi key vào hệ thống
-            // (Thêm các trường bắt buộc như fetched_at và supplier_transaction_id theo cấu trúc DB)
-            $newGameKey = GameKey::create([
-                'key_code'                => $gameKey->key_code, 
+            // 👉 Tác động bảng GAME_KEYS: CHỈ CẬP NHẬT mã có sẵn chứ KHÔNG TẠO MỚI nữa
+            // Trạng thái chuyển sang 'Activated', giữ nguyên game_version_id ban đầu của Admin
+            $gameKey->update([
                 'status'                  => 'Activated',
                 'fetched_at'              => now(),
-                'supplier_transaction_id' => 'GIVEAWAY-PLAYER-' . $playerId, 
-                'order_item_id'           => null 
+                'supplier_transaction_id' => 'GIVEAWAY-PLAYER-' . $playerId,
             ]);
             
-            // 👉 Tác động bảng LIBRARIES: Tạo mới bản ghi chứng nhận sở hữu game
+            // 👉 Tác động bảng LIBRARIES: Tạo mới bản ghi chứng nhận sở hữu game cho người chơi
             Library::create([
                 'player_id'   => $playerId,
-                'game_key_id' => $newGameKey->id, // Dùng ID của Key vừa được tạo mới
+                'game_key_id' => $gameKey->id, // Dùng ngay ID của mã Key có sẵn
                 'game_id'     => $version->game_id,
                 'version_id'  => $version->id,
-                'key_code'    => $newGameKey->key_code,
-            ]);
-            
-            // (Tùy chọn) Cập nhật trạng thái của mã Giveaway gốc thành Activated nếu mã này chỉ dùng 1 lần
-            $gameKey->update([
-                'status' => 'Activated',
+                'key_code'    => $gameKey->key_code,
             ]);
         });
 

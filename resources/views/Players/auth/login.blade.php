@@ -8,7 +8,7 @@
 <form id="loginForm" action="{{ route('login') }}" method="POST">
     @csrf
     <div class="mb-3">
-        <label class="form-label text-secondary small fw-bold text-uppercase">Đăng nhập bằng tên tài khoản</label>
+        <label class="form-label text-secondary small fw-bold text-uppercase">Đăng nhập bằng email</label>
         <input type="email" name="email" class="form-control bg-dark text-white border-0" required>
     </div>
     <div class="mb-3">
