@@ -78,23 +78,27 @@ class ReportController extends Controller
         $paymentCounts = $paymentMethods->pluck('total')->toArray();
         $paymentRevenues = $paymentMethods->pluck('total_revenue')->toArray();
 
-        // Doanh thu theo sản phẩm (Top game bán chạy)
-        $topGamesRevenue = GameKey::select(
+        // Doanh thu theo sản phẩm (Top game bán chạy) - dựa trên đơn hàng đã hoàn thành
+        $topGamesRevenue = OrderItem::select(
                 'game_versions.game_id',
-                DB::raw('count(*) as total_sold'),
-                DB::raw('sum(order_items.price_at_purchase) as total_revenue')
+                'games.cover_image',
+                DB::raw('COUNT(order_items.id) as total_sold'),
+                DB::raw('SUM(order_items.price_at_purchase * order_items.quantity) as total_revenue')
             )
-            ->join('order_items', 'game_keys.order_item_id', '=', 'order_items.id')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
             ->join('game_versions', 'order_items.game_version_id', '=', 'game_versions.id')
-            ->where('game_keys.status', 'Sold')
-            ->whereBetween('game_keys.fetched_at', [$start, $end])
-            ->groupBy('game_versions.game_id')
+            ->join('games', 'game_versions.game_id', '=', 'games.id')
+            ->where('orders.status', 'Completed')
+            ->whereBetween('orders.created_at', [$start, $end])
+            ->groupBy('game_versions.game_id', 'games.cover_image')
+            ->orderByDesc('total_sold')
             ->orderByDesc('total_revenue')
-            ->take(10)
+            ->take(5)
             ->get()
             ->map(function ($item) {
                 $game = Game::find($item->game_id);
                 $item->game_name = $game ? $game->name : 'Không xác định';
+                $item->game_image = $item->cover_image;
                 return $item;
             });
 
@@ -277,14 +281,16 @@ class ReportController extends Controller
                 break;
 
             case 'top_games':
-                fputcsv($output, ['Game', 'Số key đã bán', 'Doanh thu']);
-                $games = GameKey::select('game_versions.game_id', DB::raw('count(*) as total_sold'), DB::raw('sum(order_items.price_at_purchase) as total_revenue'))
-                    ->join('order_items', 'game_keys.order_item_id', '=', 'order_items.id')
+                fputcsv($output, ['Game', 'Số lượng đã bán', 'Doanh thu']);
+                $games = OrderItem::select('game_versions.game_id', DB::raw('COUNT(order_items.id) as total_sold'), DB::raw('SUM(order_items.price_at_purchase * order_items.quantity) as total_revenue'))
+                    ->join('orders', 'order_items.order_id', '=', 'orders.id')
                     ->join('game_versions', 'order_items.game_version_id', '=', 'game_versions.id')
-                    ->where('game_keys.status', 'Sold')
-                    ->whereBetween('game_keys.fetched_at', [$start, $end])
+                    ->where('orders.status', 'Completed')
+                    ->whereBetween('orders.created_at', [$start, $end])
                     ->groupBy('game_versions.game_id')
+                    ->orderByDesc('total_sold')
                     ->orderByDesc('total_revenue')
+                    ->take(5)
                     ->get();
                 foreach ($games as $g) {
                     $game = Game::find($g->game_id);

@@ -5,7 +5,7 @@
 @section('content')
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
-        <h1 class="h3 fw-bold">Quản lý Kho Key & Đối soát API</h1>
+        <h1 class="h3 fw-bold">Quản lý Kho Key & Đối soát Key</h1>
         <div class="btn-toolbar mb-2 mb-md-0">
             <a href="{{ route('admin.keys.custom.create') }}" class="btn btn-sm btn-primary">
                 <i class="fas fa-plus me-1"></i> Tạo Key Giveaway phát quà
@@ -87,7 +87,7 @@
                             <td class="text-end px-4">
                                 @if($key->order_item_id)
                                     <span class="badge bg-light text-success border border-success-subtle px-2 py-1 small">
-                                        <i class="fas fa-check-circle me-1"></i> Khớp API Đơn Hàng
+                                        <i class="fas fa-check-circle me-1"></i> Khớp lệnh Đơn Hàng
                                     </span>
                                 @else
                                     <span class="badge bg-light text-warning border border-warning-subtle px-2 py-1 small">

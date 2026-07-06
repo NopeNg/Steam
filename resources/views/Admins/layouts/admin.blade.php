@@ -110,7 +110,7 @@
                     <li class="mb-2">
                         <a href="{{ route('admin.keys.index') }}"
                             class="{{ request()->routeIs('admin.keys.*') ? 'active' : '' }}">
-                            <i class="fas fa-key me-2"></i> Đối soát API & GA
+                            <i class="fas fa-key me-2"></i> Đối soát Game Key & GA
                         </a>
                     </li>
                     <li class="mb-2">

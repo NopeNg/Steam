@@ -75,8 +75,7 @@ class KeyController extends Controller
     /**
      * Thu hồi key của người chơi
      * - Set GameKey.status = 'Revoked'
-     * - Xóa Library record của key đó để người chơi không thấy key nữa
-     * - Cho phép người chơi mua game đó lại
+     * - Không xóa Library record, chỉ đổi status
      */
     public function revoke(Request $request, $id)
     {
@@ -97,6 +96,8 @@ class KeyController extends Controller
         }
 
         $gameName = $gameKey->orderItem->version->game->name ?? 'N/A';
+        $orderItem = $gameKey->orderItem;
+        $order = $orderItem->order ?? null;
 
         DB::transaction(function () use ($gameKey, $request) {
             // Đánh dấu key là Revoked và lưu lý do vào supplier_transaction_id
@@ -108,6 +109,104 @@ class KeyController extends Controller
 
         $this->activityLog->log('Thu hồi key', 'Đã thu hồi key (ID: ' . $gameKey->id . ') của game "' . $gameName . '", lý do: ' . $request->revoke_reason);
 
-        return back()->with('success', 'Đã thu hồi key của game "' . $gameName . '" thành công! Người chơi sẽ không còn thấy key này trong thư viện và có thể mua lại.');
+        return back()->with('success', 'Đã thu hồi key của game "' . $gameName . '" thành công!');
+    }
+
+    /**
+     * Hoàn tiền cho 1 key cụ thể
+     */
+    public function refundKey($id)
+    {
+        $gameKey = GameKey::with('orderItem.order.player')->findOrFail($id);
+
+        if ($gameKey->status === 'Revoked') {
+            return back()->withErrors(['error' => 'Key này đã bị thu hồi. Không thể hoàn tiền.']);
+        }
+
+        if ($gameKey->status !== 'Delivered' && $gameKey->status !== 'Activated') {
+            return back()->withErrors(['error' => 'Chỉ có thể hoàn tiền cho key đã được giao (Delivered/Activated).']);
+        }
+
+        $orderItem = $gameKey->orderItem;
+        $order = $orderItem->order ?? null;
+        $player = $order->player ?? null;
+
+        if (!$order || !$player) {
+            return back()->withErrors(['error' => 'Không tìm thấy thông tin đơn hàng hoặc người chơi.']);
+        }
+
+        // Kiểm tra đã hoàn tiền key này chưa
+        $alreadyRefunded = \App\Models\WalletTransaction::where('transaction_code', 'REFUND_KEY_' . $gameKey->id)->exists();
+        if ($alreadyRefunded) {
+            return back()->withErrors(['error' => 'Key này đã được hoàn tiền trước đó.']);
+        }
+
+        // Tính tiền hoàn: price của 1 key (chia đều nếu order_item có nhiều quantity)
+        $refundAmount = $orderItem->price_at_purchase / ($orderItem->quantity ?? 1);
+
+        DB::transaction(function () use ($gameKey, $player, $refundAmount) {
+            // Cập nhật status key
+            $gameKey->update(['status' => 'Revoked']);
+
+            // Hoàn tiền vào ví
+            $player->increment('balance', $refundAmount);
+
+            // Ghi nhận giao dịch
+            \App\Models\WalletTransaction::create([
+                'player_id' => $player->id,
+                'amount' => $refundAmount,
+                'transaction_code' => 'REFUND_KEY_' . $gameKey->id,
+                'status' => 'success'
+            ]);
+        });
+
+        $this->activityLog->log('Hoàn tiền key', 'Đã hoàn ' . number_format($refundAmount, 0, ',', '.') . ' VNĐ cho key ID: ' . $gameKey->id . ' (game: ' . ($gameKey->orderItem->version->game->name ?? 'N/A') . ', đơn hàng #' . $order->id . ')');
+
+        return back()->with('success', 'Đã hoàn tiền ' . number_format($refundAmount, 0, ',', '.') . ' VNĐ vào ví người chơi cho key bị lỗi.');
+    }
+
+    /**
+     * Đổi key mới cho 1 key cụ thể (replace)
+     */
+    public function replaceKey(Request $request, $id)
+    {
+        $request->validate([
+            'new_key_code' => 'required|string|max:255',
+        ], [
+            'new_key_code.required' => 'Vui lòng nhập mã key mới.',
+        ]);
+
+        $gameKey = GameKey::with('orderItem.order.player')->findOrFail($id);
+
+        if ($gameKey->status === 'Revoked') {
+            return back()->withErrors(['error' => 'Key này đã bị thu hồi. Không thể đổi key mới.']);
+        }
+
+        if ($gameKey->status !== 'Delivered' && $gameKey->status !== 'Activated') {
+            return back()->withErrors(['error' => 'Chỉ có thể đổi key cho key đã được giao (Delivered/Activated).']);
+        }
+
+        $orderItem = $gameKey->orderItem;
+        $order = $orderItem->order ?? null;
+        $player = $order->player ?? null;
+
+        $oldKeyCode = $gameKey->key_code;
+
+        DB::transaction(function () use ($gameKey, $request, $player, $oldKeyCode) {
+            // Lưu key cũ vào supplier_transaction_id, cập nhật key_code mới
+            $gameKey->update([
+                'key_code' => trim($request->new_key_code),
+                'supplier_transaction_id' => 'REPLACED: ' . $oldKeyCode,
+            ]);
+
+            // Cập nhật library với key mới
+            \App\Models\Library::where('game_key_id', $gameKey->id)->update([
+                'key_code' => trim($request->new_key_code),
+            ]);
+        });
+
+        $this->activityLog->log('Đổi key', 'Đã đổi key cho game "' . ($gameKey->orderItem->version->game->name ?? 'N/A' ) . '": ' . $oldKeyCode . ' → ' . trim($request->new_key_code));
+
+        return back()->with('success', 'Đã đổi key mới thành công! Key cũ đã bị vô hiệu hóa.');
     }
 }

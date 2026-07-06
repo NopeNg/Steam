@@ -187,19 +187,38 @@
                 <table class="table table-hover table-sm mb-0">
                     <thead>
                         <tr>
-                            <th>#</th>
+                            <th style="width: 50px;">#</th>
                             <th>Game</th>
-                            <th>Đã bán</th>
-                            <th>Doanh thu</th>
+                            <th style="width: 80px;">Đã bán</th>
+                            <th style="width: 120px;">Doanh thu</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($topGamesRevenue as $idx => $game)
                         <tr>
                             <td>{{ $idx + 1 }}</td>
-                            <td>{{ $game->game_name }}</td>
-                            <td>{{ $game->total_sold }}</td>
-                            <td>{{ number_format($game->total_revenue, 0, ',', '.') }} VNĐ</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    @php
+                                        $imgSrc = $game->game_image;
+                                        if ($imgSrc && !str_starts_with($imgSrc, 'http')) {
+                                            $imgSrc = asset('storage/' . $imgSrc);
+                                        }
+                                    @endphp
+                                    @if($imgSrc)
+                                    <img src="{{ $imgSrc }}" 
+                                         alt="{{ $game->game_name }}" 
+                                         style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                    @else
+                                    <div style="width: 40px; height: 40px; background: #e9ecef; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-gamepad text-muted"></i>
+                                    </div>
+                                    @endif
+                                    <span class="fw-bold">{{ $game->game_name }}</span>
+                                </div>
+                            </td>
+                            <td><span class="badge bg-primary">{{ $game->total_sold }}</span></td>
+                            <td class="text-center">{{ number_format($game->total_revenue, 0, ',', '.') }} VNĐ</td>
                         </tr>
                         @empty
                         <tr>

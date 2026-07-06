@@ -8,14 +8,13 @@ class WalletTransaction extends Model
 {
     protected $table = 'wallet_transactions';
 
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'player_id',
         'amount',
         'transaction_code',
         'status',
-        'created_at',
     ];
 
     public function player()

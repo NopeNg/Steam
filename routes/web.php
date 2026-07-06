@@ -142,6 +142,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/create', [\App\Http\Controllers\Admins\KeyController::class, 'create'])->name('custom.create');
             Route::post('/custom', [\App\Http\Controllers\Admins\KeyController::class, 'storeCustom'])->name('custom.store');
             Route::post('/{id}/revoke', [\App\Http\Controllers\Admins\KeyController::class, 'revoke'])->name('revoke');
+            Route::post('/{id}/refund', [\App\Http\Controllers\Admins\KeyController::class, 'refundKey'])->name('refund');
+            Route::post('/{id}/replace', [\App\Http\Controllers\Admins\KeyController::class, 'replaceKey'])->name('replace');
         });
 
         // === REPORTS ===

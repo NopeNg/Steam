@@ -70,7 +70,7 @@
                                 <select class="form-select" id="status" name="status">
                                     <option value="Completed" {{ $order->status == 'Completed' ? 'selected' : '' }}>Hoàn thành (Completed)</option>
                                     <option value="Pending" {{ $order->status == 'Pending' ? 'selected' : '' }}>Chờ thanh toán (Pending)</option>
-                                    <option value="API_Error" {{ $order->status == 'API_Error' ? 'selected' : '' }}>Lỗi API (API Error)</option>
+                                    <option value="API_Error" {{ $order->status == 'API_Error' ? 'selected' : '' }}>Lỗi Key (Key Error)</option>
                                     <option value="Failed" {{ $order->status == 'Failed' ? 'selected' : '' }}>Thất bại (Failed)</option>
                                 </select>
                             </div>
@@ -80,50 +80,52 @@
                         </form>
 
                         @if($order->status == 'API_Error')
-                            <div class="mt-4 p-3 bg-dark border border-danger rounded">
-                                <h6 class="text-danger fw-bold mb-3"><i class="fas fa-exclamation-triangle"></i> Xử lý Đối soát</h6>
-                                <div class="d-flex flex-column gap-2">
-                                    <form action="{{ route('admin.orders.refund', $order->id) }}" method="POST" class="w-100 m-0">
-                                        @csrf
-                                        <button type="submit" class="btn btn-outline-danger w-100 btn-sm text-start"
-                                            onclick="return confirm('Bạn có chắc chắn muốn hoàn tiền cho đơn này?')">
-                                            <i class="fas fa-undo fa-fw"></i> Hoàn tiền vào ví
-                                        </button>
-                                    </form>
-
-                                    <button type="button" class="btn btn-outline-success w-100 btn-sm text-start" data-bs-toggle="modal" data-bs-target="#manualKeyModal">
-                                        <i class="fas fa-key fa-fw"></i> Nhập Key thủ công
-                                    </button>
-                                </div>
+                            <div class="mt-4 p-3 bg-dark border border-warning rounded">
+                                <h6 class="text-warning fw-bold mb-2"><i class="fas fa-exclamation-triangle"></i> Hướng dẫn xử lý</h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Khi đơn hàng ở trạng thái "Lỗi Key", bạn có thể xử lý từng key riêng lẻ ở phần <strong>"Danh sách Key trong đơn"</strong> bên dưới với các tùy chọn: <strong>Đổi key</strong> (cấp key mới thay thế), <strong>Hoàn tiền</strong> (hoàn tiền key đó vào ví), hoặc <strong>Thu hồi</strong> (vô hiệu hóa key).
+                                </small>
                             </div>
                         @endif
 
                     </div>
                 </div>
 
-                {{-- Thu hồi key --}}
+                {{-- Quản lý key --}}
                 @if(in_array($order->status, ['Completed', 'API_Error']))
                     @php
+                        // Hiển thị tất cả key không bị thu hồi (bao gồm Sold, Delivered, Activated)
                         $deliverableKeys = $order->orderItems->flatMap(function($item) {
-                            return $item->gameKeys->whereIn('status', ['Delivered', 'Activated']);
+                            return $item->gameKeys->where('status', '!=', 'Revoked');
                         });
                     @endphp
                     @if($deliverableKeys->isNotEmpty())
                         <div class="card border-0 shadow-sm rounded-3">
                             <div class="card-body p-4">
-                                <h5 class="fw-bold text-danger mb-3"><i class="fas fa-ban me-2"></i>Thu hồi Key</h5>
+                                <h5 class="fw-bold mb-3"><i class="fas fa-key me-2 text-info"></i>Danh sách Key trong đơn</h5>
                                 @foreach($deliverableKeys as $key)
-                                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-dark rounded border border-gray-700">
-                                        <div>
-                                            <small class="text-muted d-block">Key: <span class="text-info">{{ $key->key_code }}</span></small>
-                                            @if($key->orderItem->gameVersion && $key->orderItem->gameVersion->game)
-                                                <small class="text-muted">{{ $key->orderItem->gameVersion->game->name }} ({{ $key->orderItem->gameVersion->version_name }})</small>
-                                            @endif
-                                        </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-dark rounded border border-gray-700">
+                                    <div>
+                                        <small class="text-muted d-block">Key: <span class="text-info">{{ $key->key_code }}</span></small>
+                                        @if($key->orderItem->gameVersion && $key->orderItem->gameVersion->game)
+                                            <small class="text-muted">{{ $key->orderItem->gameVersion->game->name }} ({{ $key->orderItem->gameVersion->version_name }})</small>
+                                        @endif
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        @if($order->status == 'API_Error')
+                                        <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#replaceKeyModal{{ $key->id }}">
+                                            <i class="fas fa-exchange-alt me-1"></i> Đổi key
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#refundKeyModal{{ $key->id }}">
+                                            <i class="fas fa-undo me-1"></i> Hoàn tiền
+                                        </button>
+                                        @endif
                                         <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#revokeKeyModal{{ $key->id }}">
                                             <i class="fas fa-trash-alt me-1"></i> Thu hồi
                                         </button>
                                     </div>
+                                </div>
 
                                     {{-- Modal nhập lý do thu hồi --}}
                                     <div class="modal fade" id="revokeKeyModal{{ $key->id }}" tabindex="-1" aria-hidden="true">
@@ -153,7 +155,78 @@
                                             </div>
                                         </div>
                                     </div>
-                                @endforeach
+                                    {{-- Modal đổi key mới --}}
+                                    <div class="modal fade" id="replaceKeyModal{{ $key->id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content bg-dark text-white border-secondary">
+                                                <div class="modal-header border-secondary">
+                                                    <h5 class="modal-title fw-bold text-info"><i class="fas fa-exchange-alt me-2"></i>Đổi Key mới</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <form action="{{ route('admin.keys.replace', $key->id) }}" method="POST">
+                                                    @csrf
+                                                    <div class="modal-body">
+                                                        <p class="text-warning small mb-3">
+                                                            <i class="fas fa-info-circle me-1"></i> 
+                                                            Key cũ: <strong class="text-info">{{ $key->key_code }}</strong>
+                                                        </p>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small text-muted fw-bold">Mã key mới <span class="text-danger">*</span></label>
+                                                            <input type="text" name="new_key_code" class="form-control bg-transparent text-white border-secondary" required placeholder="Nhập mã key mới">
+                                                        </div>
+                                                        <div class="p-3 rounded-3 bg-info bg-opacity-10 border border-info">
+                                                            <small class="text-info">
+                                                                <i class="fas fa-info-circle me-1"></i>
+                                                                Key cũ sẽ bị vô hiệu hóa và key mới sẽ được thay thế vào thư viện người chơi.
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer border-secondary">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                        <button type="submit" class="btn btn-info fw-bold text-white">Xác nhận đổi key</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Modal xác nhận hoàn tiền --}}
+                                    <div class="modal fade" id="refundKeyModal{{ $key->id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content bg-dark text-white border-secondary">
+                                                <div class="modal-header border-secondary">
+                                                    <h5 class="modal-title fw-bold text-success"><i class="fas fa-undo me-2"></i>Hoàn tiền Key</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <form action="{{ route('admin.keys.refund', $key->id) }}" method="POST">
+                                                    @csrf
+                                                    <div class="modal-body">
+                                                        <p class="text-warning small mb-3">
+                                                            <i class="fas fa-info-circle me-1"></i> 
+                                                            Hoàn tiền cho key: <strong class="text-info">{{ $key->key_code }}</strong>
+                                                        </p>
+                                                        @if($key->orderItem)
+                                                            @php
+                                                                $refundAmount = $key->orderItem->price_at_purchase / ($key->orderItem->quantity ?? 1);
+                                                            @endphp
+                                                            <p class="small mb-2">Số tiền hoàn: <strong class="text-success">{{ number_format($refundAmount, 0, ',', '.') }}đ</strong></p>
+                                                        @endif
+                                                        <div class="p-3 rounded-3 bg-warning bg-opacity-10 border border-warning">
+                                                            <small class="text-warning">
+                                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                                Key sẽ bị thu hồi và tiền sẽ được hoàn vào ví người chơi.
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer border-secondary">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                        <button type="submit" class="btn btn-success fw-bold">Xác nhận hoàn tiền</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    @endforeach
                             </div>
                         </div>
                     @endif
@@ -221,17 +294,19 @@
                     <h5 class="modal-title fw-bold">Nhập Key Thủ Công</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="{{ route('admin.orders.manualKey', $order->id) }}" method="POST">
+                <form action="{{ route('admin.keys.replace', 0) }}" method="POST">
                     @csrf
+                    <input type="hidden" name="new_key_code" value="">
                     <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label small text-muted fw-bold">Mã Game Key</label>
-                            <input type="text" name="key_code" class="form-control bg-transparent text-white border-secondary" required placeholder="Ví dụ: STEAM-XXXXX-YYYYY">
+                        <div class="p-3 rounded-3 bg-warning bg-opacity-10 border border-warning">
+                            <small class="text-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                Chức năng này đã được thay thế. Vui lòng sử dụng nút <strong>"Đổi key"</strong> cho từng key cụ thể trong danh sách bên trên.
+                            </small>
                         </div>
                     </div>
                     <div class="modal-footer border-secondary">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                        <button type="submit" class="btn btn-success">Xác nhận giao hàng</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
                     </div>
                 </form>
             </div>

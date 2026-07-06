@@ -97,7 +97,6 @@
                 <div class="card border-0 shadow-sm rounded-3">
                     <div class="card-body p-4">
                         <h5 class="fw-bold mb-4 text-primary">Bộ sưu tập ảnh (Bảng game_images)</h5>
-                        
                         <div class="row g-4 mb-4">
                             @foreach($game->images as $img)
                             <div class="col-md-4 col-lg-3">
@@ -116,9 +115,7 @@
                             </div>
                             @endforeach
                         </div>
-
                         <hr class="text-muted my-4">
-
                         <h6 class="fw-bold mb-3">Tải lên ảnh phụ mới</h6>
                         <div id="image-upload-container">
                             <div class="row g-2 align-items-center mb-3 upload-row">
@@ -142,7 +139,6 @@
                                 </div>
                             </div>
                         </div>
-                        
                         <button type="button" class="btn btn-sm btn-outline-success mt-2" id="add-more-image-btn">
                             <i class="fas fa-plus me-1"></i> Thêm hàng tải ảnh
                         </button>
@@ -150,7 +146,6 @@
                 </div>
             </div>
         </div>
-
         <div class="d-flex justify-content-end gap-2 mt-4 mb-5">
             <a href="{{ route('admin.games.index') }}" class="btn btn-secondary px-4">Hủy bỏ</a>
             <button type="submit" class="btn btn-success px-5 fw-bold"><i class="fas fa-save me-1"></i> Lưu toàn bộ thay đổi</button>
@@ -158,11 +153,11 @@
     </form>
 </div>
 
-<script>
+    <script>
     function deleteImage(imageId, button) {
         if (!confirm('Bạn có chắc muốn xóa ảnh này?')) return;
 
-        fetch('{{ route("admin.games.destroyImage", "") }}/' + imageId, {
+        fetch('/admin/games/images/' + imageId, {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',

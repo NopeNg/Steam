@@ -195,6 +195,20 @@ CREATE TABLE cart_items (
 
 
 -- ============================================
+-- 7. NHÓM BẢNG VÍ TIỀN & WALLETS
+-- ============================================
+
+CREATE TABLE wallet_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    player_id INT NOT NULL,
+    amount DECIMAL(15, 2) NOT NULL,
+    transaction_code VARCHAR(150) NOT NULL,
+    status VARCHAR(50) DEFAULT 'success',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+);
+
+-- ============================================
 -- 8. NHÓM BẢNG NHÀ CUNG CẤP (SUPPLIERS)
 -- ============================================
 
