@@ -178,6 +178,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     }); // End middleware admin
 }); // End admin prefix
-
+Route::get('/phpinfo', function () {
+    return phpinfo();
+});
 // Chatbot route
 Route::post('/chat', [\App\Http\Controllers\Players\ChatController::class, 'chat']);

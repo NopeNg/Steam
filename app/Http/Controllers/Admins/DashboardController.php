@@ -9,7 +9,6 @@ use App\Models\Player;
 use App\Models\GameKey;
 use App\Models\Game;
 use App\Models\OrderItem;
-use App\Models\GameVersion;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
@@ -25,13 +24,9 @@ class DashboardController extends Controller
             'end_date.after_or_equal' => 'Ngày kết thúc không được nhỏ hơn ngày bắt đầu.',
         ]);
 
-        $today = Carbon::today();
         $startOfWeek = Carbon::now()->startOfWeek();
         $startOfMonth = Carbon::now()->startOfMonth();
-        $startOfYear = Carbon::now()->startOfYear();
         $sub24h = Carbon::now()->subDay();
-        $sub7d = Carbon::now()->subDays(7);
-        $sub30d = Carbon::now()->subDays(30);
 
         // ============ DATE RANGE FOR CHARTS & STATS ============
         $startDate = $request->input('start_date', Carbon::now()->subDays(13)->format('Y-m-d'));
@@ -39,7 +34,7 @@ class DashboardController extends Controller
         $start = Carbon::parse($startDate)->startOfDay();
         $end = Carbon::parse($endDate)->endOfDay();
 
-        // ============ THỐNG KÊ NHANH (theo khoảng thời gian) ============
+        // ============ THỐNG KÊ NHANH ============
         $totalRevenue = Order::where('status', 'Completed')->whereBetween('created_at', [$start, $end])->sum('total_amount');
         $totalOrders = Order::whereBetween('created_at', [$start, $end])->count();
         $totalUsers = Player::whereBetween('created_at', [$start, $end])->count();
@@ -49,33 +44,35 @@ class DashboardController extends Controller
             ->count();
         $revenueWeek = Order::where('status', 'Completed')->where('created_at', '>=', $startOfWeek)->sum('total_amount');
         $revenueMonth = Order::where('status', 'Completed')->where('created_at', '>=', $startOfMonth)->sum('total_amount');
-
         $newUsers = Player::where('created_at', '>=', $sub24h)->count();
         $recentOrders = Order::with('player')->orderBy('created_at', 'desc')->take(5)->get();
 
-        // ============ TOP GAME BÁN CHẠY ============
-        $topGames = GameKey::select(
+        // ============ TOP GAME BÁN CHẠY (dựa trên đơn hàng đã hoàn thành) ============
+        $topGames = OrderItem::select(
                 'game_versions.game_id',
-                'game_versions.version_name',
-                DB::raw('count(*) as total_sold')
+                DB::raw('COUNT(order_items.id) as total_sold'),
+                DB::raw('SUM(order_items.price_at_purchase * order_items.quantity) as total_revenue')
             )
-            ->join('order_items', 'game_keys.order_item_id', '=', 'order_items.id')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
             ->join('game_versions', 'order_items.game_version_id', '=', 'game_versions.id')
-            ->where('game_keys.status', 'Sold')
-            ->where('game_keys.fetched_at', '>=', $startOfWeek)
-            ->groupBy('game_versions.game_id', 'game_versions.version_name')
+            ->where('orders.status', 'Completed')
+            ->where('orders.created_at', '>=', $startOfWeek)
+            ->groupBy('game_versions.game_id')
             ->orderByDesc('total_sold')
             ->take(5)
             ->get()
             ->map(function ($item) {
-                $item->game = Game::find($item->game_id);
+                $game = Game::find($item->game_id);
+                $item->game = $game;
+                $item->game_name = $game ? $game->name : 'Không xác định';
+                $item->game_image = $game ? $game->cover_image : null;
                 return $item;
             });
 
         // ============ DATE RANGE FOR CHARTS ============
         $dateRange = CarbonPeriod::create($startDate, $endDate);
 
-        // ------------------- CHART 1: DOANH THU -------------------
+        // CHART 1: DOANH THU
         $revenueByDay = Order::where('status', 'Completed')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
@@ -83,8 +80,8 @@ class DashboardController extends Controller
             ->groupBy(fn($d) => Carbon::parse($d->created_at)->format('d/m'));
 
         $chart1Labels = [];
-        $chart1Revenue = [];  // Line data
-        $chart1Orders = [];   // Bar data (số đơn hoàn thành)
+        $chart1Revenue = [];
+        $chart1Orders = [];
         foreach ($dateRange as $date) {
             $key = $date->format('d/m');
             $chart1Labels[] = $key;
@@ -93,7 +90,7 @@ class DashboardController extends Controller
             $chart1Orders[] = $dayOrders->count();
         }
 
-        // ------------------- CHART 2: NGƯỜI DÙNG MỚI -------------------
+        // CHART 2: NGƯỜI DÙNG MỚI
         $usersByDay = Player::whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
             ->get()
@@ -112,7 +109,7 @@ class DashboardController extends Controller
             $chart2Cumulative[] = $cumulative;
         }
 
-        // ------------------- CHART 3: ĐƠN HÀNG THEO TRẠNG THÁI -------------------
+        // CHART 3: ĐƠN HÀNG THEO TRẠNG THÁI
         $ordersByDay = Order::whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
             ->get()
@@ -133,7 +130,7 @@ class DashboardController extends Controller
             $chart3Failed[] = $dayOrders->where('status', 'Failed')->count();
         }
 
-        // ------------------- CHART 4: PHÂN BỔ PHƯƠNG THỨC THANH TOÁN -------------------
+        // CHART 4: PHÂN BỔ PHƯƠNG THỨC THANH TOÁN
         $paymentMethods = Order::select('payment_method', DB::raw('count(*) as total'), DB::raw('sum(total_amount) as total_revenue'))
             ->where('status', 'Completed')
             ->whereDate('created_at', '>=', $startDate)
@@ -145,17 +142,16 @@ class DashboardController extends Controller
         $chart4Counts = $paymentMethods->pluck('total')->toArray();
         $chart4Revenues = $paymentMethods->pluck('total_revenue')->toArray();
 
-        // ------------------- CHART 5: TOP GAMES (BAR) -------------------
-        $topGamesAll = GameKey::select(
+        // CHART 5: TOP GAMES (BAR) - dựa trên đơn hàng đã hoàn thành
+        $topGamesAll = OrderItem::select(
                 'game_versions.game_id',
-                DB::raw('count(*) as total_sold'),
-                DB::raw('sum(order_items.price_at_purchase) as total_revenue')
+                DB::raw('COUNT(order_items.id) as total_sold'),
+                DB::raw('SUM(order_items.price_at_purchase * order_items.quantity) as total_revenue')
             )
-            ->join('order_items', 'game_keys.order_item_id', '=', 'order_items.id')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
             ->join('game_versions', 'order_items.game_version_id', '=', 'game_versions.id')
-            ->where('game_keys.status', 'Sold')
-            ->whereDate('game_keys.fetched_at', '>=', $startDate)
-            ->whereDate('game_keys.fetched_at', '<=', $endDate)
+            ->where('orders.status', 'Completed')
+            ->whereBetween('orders.created_at', [$start, $end])
             ->groupBy('game_versions.game_id')
             ->orderByDesc('total_sold')
             ->take(10)
@@ -170,7 +166,7 @@ class DashboardController extends Controller
         $chart5Sold = $topGamesAll->pluck('total_sold')->toArray();
         $chart5Revenue = $topGamesAll->pluck('total_revenue')->toArray();
 
-        // ============ ORDERS TABLE ============
+        // ORDERS TABLE
         $orders = Order::with('player')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->orderBy('created_at', 'desc')
@@ -178,13 +174,9 @@ class DashboardController extends Controller
             ->withQueryString();
 
         return view('Admins.dashboard', compact(
-            'revenueWeek', 'revenueMonth',
-            'newUsers', 'totalUsers',
-            'errorKeys',
-            'recentOrders',
-            'totalOrders', 'totalRevenue',
-            'startDate', 'endDate',
-            'topGames',
+            'revenueWeek', 'revenueMonth', 'newUsers', 'totalUsers',
+            'errorKeys', 'recentOrders', 'totalOrders', 'totalRevenue',
+            'startDate', 'endDate', 'topGames',
             'chart1Labels', 'chart1Revenue', 'chart1Orders',
             'chart2Labels', 'chart2NewUsers', 'chart2Cumulative',
             'chart3Labels', 'chart3Completed', 'chart3Pending', 'chart3ApiError', 'chart3Failed',

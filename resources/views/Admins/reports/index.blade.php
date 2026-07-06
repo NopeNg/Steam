@@ -134,7 +134,7 @@
     <div class="col-md-3">
         <div class="card border-0 shadow-sm">
             <div class="card-body text-center">
-                <span class="badge bg-secondary fs-6">Lỗi API: {{ $apiErrorOrders }}</span>
+                <span class="badge bg-secondary fs-6">lỗi Key: {{ $apiErrorOrders }}</span>
             </div>
         </div>
     </div>

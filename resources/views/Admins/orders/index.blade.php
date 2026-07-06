@@ -23,7 +23,7 @@
                                 (Completed)</option>
                             <option value="Pending" {{ request('status') == 'Pending' ? 'selected' : '' }}>Chờ thanh toán
                                 (Pending)</option>
-                            <option value="API_Error" {{ request('status') == 'API_Error' ? 'selected' : '' }}>Lỗi API (API
+                            <option value="API_Error" {{ request('status') == 'API_Error' ? 'selected' : '' }}>lỗi Key (Key
                                 Error)</option>
                             <option value="Failed" {{ request('status') == 'Failed' ? 'selected' : '' }}>Thất bại (Failed)
                             </option>
@@ -77,7 +77,7 @@
                                         @elseif($order->status == 'Pending')
                                             <span class="badge bg-warning text-dark rounded-pill px-3">Đang chờ</span>
                                         @elseif($order->status == 'API_Error')
-                                            <span class="badge bg-danger rounded-pill px-3">Lỗi API</span>
+                                            <span class="badge bg-danger rounded-pill px-3">lỗi Key</span>
                                         @else
                                             <span class="badge bg-secondary rounded-pill px-3">Thất bại</span>
                                         @endif

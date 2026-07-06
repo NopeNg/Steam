@@ -66,7 +66,7 @@ class ReportController extends Controller
         $orderStatusData = [
             $completedOrders, $pendingOrders, $apiErrorOrders, $cancelledOrders
         ];
-        $orderStatusLabels = ['Hoàn thành', 'Chờ xử lý', 'Lỗi API', 'Thất bại'];
+        $orderStatusLabels = ['Hoàn thành', 'Chờ xử lý', 'lỗi API', 'Thất bại'];
 
         // Phương thức thanh toán
         $paymentMethods = Order::select('payment_method', DB::raw('count(*) as total'), DB::raw('sum(total_amount) as total_revenue'))

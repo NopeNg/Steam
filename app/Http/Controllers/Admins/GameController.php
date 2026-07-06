@@ -68,7 +68,10 @@ class GameController extends Controller
             if ($releaseDate->gt($today)) {
                 $data['status'] = 'ComingSoon';
             }
-        } 
+        }
+
+        $game = Game::create($data);
+
         if ($request->hasFile('cover_image')) {
             $path = $request->file('cover_image')->store('games', 'public');
             $game->update(['cover_image' => '/storage/' . $path]);

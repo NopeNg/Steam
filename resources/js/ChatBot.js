@@ -3,7 +3,7 @@
     const FAQ = {
         muagame: '🎮 Hướng dẫn mua Game:\n1. Tìm game trên trang chủ\n2. Chọn phiên bản → Thêm vào giỏ\n3. Thanh toán qua QR (VNPAY)\n4. Key sẽ xuất hiện trong Thư viện',
         kichhoat: '🔑 Hướng dẫn kích hoạt Key:\n1. Vào Thư viện → Chưa kích hoạt\n2. Bấm "XEM KEY" để xem mã\n3. Mở game → Redeem Code → Dán key\n4. Quay lại bấm "KÍCH HOẠT"',
-        hotro: '❓ Trung tâm hỗ trợ:\n🛒 Thanh toán: Quét QR qua VNPAY\n🔑 Lỗi key: Liên hệ Admin\n📞 Email: admin@gamekey.com\n📞 Hotline: +84 123 456 789'
+        hotro: '❓ Trung tâm hỗ trợ:\n🛒 Thanh toán: Quét QR qua VNPAY\n🔑 lỗi API: Liên hệ Admin\n📞 Email: admin@gamekey.com\n📞 Hotline: +84 123 456 789'
     };
 
     const API_URL = '/chat';

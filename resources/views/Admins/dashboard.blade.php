@@ -35,7 +35,7 @@
                     <div class="border rounded-3 p-3 text-center h-100">
                         <div class="fs-1 text-warning mb-2"><i class="fas fa-users"></i></div>
                         <h5 class="mb-0 fw-bold">{{ $totalUsers }}</h5>
-                        <small class="text-muted">Người dùng</small>
+                        <small class="text-muted">Người dùng mới</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
@@ -207,7 +207,7 @@
                                             @elseif($order->status == 'Pending')
                                                 <span class="badge bg-warning text-dark rounded-pill px-3">Chờ thanh toán</span>
                                             @elseif($order->status == 'API_Error')
-                                                <span class="badge bg-danger rounded-pill px-3">Lỗi API</span>
+<span class="badge bg-danger rounded-pill px-3">lỗi Key</span>
                                             @else
                                                 <span class="badge bg-secondary rounded-pill px-3">Hủy bỏ</span>
                                             @endif
@@ -232,13 +232,24 @@
                 </div>
                 <div class="card-body">
                     @forelse($topGames as $index => $topGame)
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="bg-{{ $index < 1 ? 'primary' : 'secondary' }} text-white rounded p-2 me-3 fw-bold" style="width: 38px; text-align: center;">
-                                #{{ $loop->iteration }}
+                        <div class="d-flex align-items-center mb-3 p-2 bg-dark bg-opacity-25 rounded">
+                            <div class="me-3">
+                                @php
+                                    $imgSrc = $topGame->game_image;
+                                    if ($imgSrc && !str_starts_with($imgSrc, 'http')) {
+                                        $imgSrc = asset('storage/' . $imgSrc);
+                                    }
+                                @endphp
+                                @if($imgSrc)
+                                    <img src="{{ $imgSrc }}" alt="{{ $topGame->game_name }}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 6px;">
+                                @else
+                                    <div style="width: 45px; height: 45px; background: #2a2a3e; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-gamepad text-muted"></i>
+                                    </div>
+                                @endif
                             </div>
                             <div class="flex-grow-1">
-                                <h6 class="mb-0 fw-bold fs-6">{{ $topGame->game->name ?? 'Không xác định' }}</h6>
-                                <small class="text-muted">{{ $topGame->total_sold }} mã Key đã xuất</small>
+                                <h6 class="mb-0 fw-bold fs-6">{{ $topGame->game_name }}</h6>
                             </div>
                         </div>
                     @empty
@@ -448,7 +459,7 @@ function initCharts(type) {
         chart3 = new Chart(ctx3, buildChartConfig('bar', chart3Labels, [
             { label: 'Hoàn thành', data: chart3Completed, backgroundColor: palette[1] + '80' },
             { label: 'Chờ thanh toán', data: chart3Pending, backgroundColor: palette[2] + '80' },
-            { label: 'Lỗi API', data: chart3ApiError, backgroundColor: palette[3] + '80' },
+            { label: 'lỗi Key', data: chart3ApiError, backgroundColor: palette[3] + '80' },
             { label: 'Thất bại', data: chart3Failed, backgroundColor: palette[4] + '80' },
         ], {
             scales: {
@@ -460,7 +471,7 @@ function initCharts(type) {
         chart3 = new Chart(ctx3, buildChartConfig('line', chart3Labels, [
             { label: 'Hoàn thành', data: chart3Completed, borderColor: palette[1], backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
             { label: 'Chờ thanh toán', data: chart3Pending, borderColor: palette[2], backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
-            { label: 'Lỗi API', data: chart3ApiError, borderColor: palette[3], backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
+            { label: 'lỗi Key', data: chart3ApiError, borderColor: palette[3], backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
             { label: 'Thất bại', data: chart3Failed, borderColor: palette[4], backgroundColor: 'transparent', pointRadius: 2, tension: 0.3 },
         ]));
     }

@@ -70,7 +70,7 @@
                                 <select class="form-select" id="status" name="status">
                                     <option value="Completed" {{ $order->status == 'Completed' ? 'selected' : '' }}>Hoàn thành (Completed)</option>
                                     <option value="Pending" {{ $order->status == 'Pending' ? 'selected' : '' }}>Chờ thanh toán (Pending)</option>
-                                    <option value="API_Error" {{ $order->status == 'API_Error' ? 'selected' : '' }}>Lỗi Key (Key Error)</option>
+                                    <option value="API_Error" {{ $order->status == 'API_Error' ? 'selected' : '' }}>lỗi Key (Key Error)</option>
                                     <option value="Failed" {{ $order->status == 'Failed' ? 'selected' : '' }}>Thất bại (Failed)</option>
                                 </select>
                             </div>
@@ -84,7 +84,7 @@
                                 <h6 class="text-warning fw-bold mb-2"><i class="fas fa-exclamation-triangle"></i> Hướng dẫn xử lý</h6>
                                 <small class="text-muted">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    Khi đơn hàng ở trạng thái "Lỗi Key", bạn có thể xử lý từng key riêng lẻ ở phần <strong>"Danh sách Key trong đơn"</strong> bên dưới với các tùy chọn: <strong>Đổi key</strong> (cấp key mới thay thế), <strong>Hoàn tiền</strong> (hoàn tiền key đó vào ví), hoặc <strong>Thu hồi</strong> (vô hiệu hóa key).
+                                    Khi đơn hàng ở trạng thái "lỗi Key", bạn có thể xử lý từng key riêng lẻ ở phần <strong>"Danh sách Key trong đơn"</strong> bên dưới với các tùy chọn: <strong>Đổi key</strong> (cấp key mới thay thế), <strong>Hoàn tiền</strong> (hoàn tiền key đó vào ví), hoặc <strong>Thu hồi</strong> (vô hiệu hóa key).
                                 </small>
                             </div>
                         @endif
