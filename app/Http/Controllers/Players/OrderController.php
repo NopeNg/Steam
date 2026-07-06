@@ -44,7 +44,19 @@ class OrderController extends Controller implements HasMiddleware
     public function checkout()
     {
         $cartItems = CartItem::with('version.game')->where('cart_id', $this->getCartId())->get();
-        $friends = Player::where('id', '!=', Auth::guard('player')->id())->get();
+        $playerId = Auth::guard('player')->id();
+        $friends = Player::whereIn('id', function($query) use ($playerId) {
+            $query->select('sender_id')
+                  ->from('friendships')
+                  ->where('receiver_id', $playerId)
+                  ->where('status', 'Accepted')
+                ->union(
+                    \DB::table('friendships')
+                      ->select('receiver_id')
+                      ->where('sender_id', $playerId)
+                      ->where('status', 'Accepted')
+                );
+        })->get();
         return view('Players.orders.checkout', compact('cartItems', 'friends'));
     }
 

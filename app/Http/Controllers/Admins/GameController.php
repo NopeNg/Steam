@@ -70,6 +70,7 @@ class GameController extends Controller
             }
         }
 
+        // Tạo game mới
         $game = Game::create($data);
 
         if ($request->hasFile('cover_image')) {
