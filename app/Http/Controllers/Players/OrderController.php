@@ -166,7 +166,44 @@ class OrderController extends Controller implements HasMiddleware
                     $gameId = $item->version->game_id;
                     $quantity = $item->quantity;
                     
-                    // Gọi Supplier lấy số lượng key tương ứng
+                    // NẾU LÀ FREE GAME (giá = 0) -> Không cần gọi Supplier, tự sinh key nội bộ
+                    if ($item->price_at_purchase == 0) {
+                        for ($i = 0; $i < $quantity; $i++) {
+                            $freeKeyCode = 'FREE-' . strtoupper(uniqid()) . '-' . $playerId;
+
+                            $gameKey = GameKey::create([
+                                'order_item_id'            => $item->id,
+                                'game_version_id'          => $item->game_version_id,
+                                'key_code'                 => $freeKeyCode,
+                                'status'                   => 'Pending', // Free game cũng ở trạng thái chờ kích hoạt
+                                'fetched_at'               => now(),
+                                'supplier_transaction_id'  => 'FREE-GAME-' . $playerId,
+                                'supplier_code'            => 'INTERNAL',
+                            ]);
+
+                            // Phân phối Key dựa theo loại đơn hàng
+                            if ($order->order_type === 'Gift' && $order->friend_id) {
+                                Gift::create([
+                                    'sender_id'   => $playerId,
+                                    'receiver_id' => $order->friend_id,
+                                    'game_key_id' => $gameKey->id,
+                                    'status'      => 'Sent',
+                                ]);
+                            } elseif ($order->order_type === 'Personal' || $order->order_type === 'Other') {
+                                Library::create([
+                                    'player_id'     => $playerId,
+                                    'game_key_id'   => $gameKey->id,
+                                    'game_id'       => $gameId,
+                                    'key_code'      => $freeKeyCode,
+                                    'version_id'    => $item->game_version_id,
+                                    'order_item_id' => $item->id,
+                                ]);
+                            }
+                        }
+                        continue; // Bỏ qua xử lý supplier cho free game
+                    }
+                    
+                    // Gọi Supplier lấy số lượng key tương ứng (chỉ cho game có giá > 0)
                     $result = $this->supplierManager->purchaseKeys($gameId, $quantity, $playerEmail);
 
                     if ($result['success']) {
@@ -186,7 +223,7 @@ $gameKey = GameKey::create([
     'supplier_code'   => $lastSupplierCode,
 ]);
 
-                            // 2. Phân phối Key dựa theo đúng 2 loại đơn hàng: Personal hoặc Gift
+                            // 2. Phân phối Key dựa theo đúng loại đơn hàng: Gift, Personal, hoặc Other
                             if ($order->order_type === 'Gift' && $order->friend_id) {
                                 // Nếu là Gift -> Tạo bản ghi Gift gửi cho bạn bè
                                 Gift::create([
@@ -195,8 +232,8 @@ $gameKey = GameKey::create([
                                     'game_key_id' => $gameKey->id,
                                     'status' => 'Sent'
                                 ]);
-                            } elseif ($order->order_type === 'Personal') {
-                                // Nếu là Personal -> Tạo bản ghi trong Library của chính người mua
+                            } elseif ($order->order_type === 'Personal' || $order->order_type === 'Other') {
+                                // Nếu là Personal hoặc Other -> Tạo bản ghi trong Library của chính người mua
                                 Library::create([
                                     'player_id' => $playerId,
                                     'game_key_id' => $gameKey->id,
