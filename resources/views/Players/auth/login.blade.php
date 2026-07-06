@@ -5,18 +5,45 @@
     <div class="row">
         <div class="col-md-7">
             <h2 class="text-white mb-4">Đăng nhập</h2>
-            <form action="{{ route('login') }}" method="POST">
-                @csrf
-                <div class="mb-3">
-                    <label class="form-label text-secondary small fw-bold text-uppercase">Đăng nhập bằng tên tài khoản</label>
-                    <input type="email" name="email" class="form-control bg-dark text-white border-0" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-secondary small fw-bold text-uppercase">Mật khẩu</label>
-                    <input type="password" name="password" class="form-control bg-dark text-white border-0" required>
-                </div>
-                <button type="submit" class="btn btn-steam w-100 py-2">Đăng nhập</button>
-            </form>
+<form id="loginForm" action="{{ route('login') }}" method="POST">
+    @csrf
+    <div class="mb-3">
+        <label class="form-label text-secondary small fw-bold text-uppercase">Đăng nhập bằng tên tài khoản</label>
+        <input type="email" name="email" class="form-control bg-dark text-white border-0" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label text-secondary small fw-bold text-uppercase">Mật khẩu</label>
+        <input type="password" name="password" class="form-control bg-dark text-white border-0" required>
+    </div>
+
+    <!-- Thêm Checkbox tại đây -->
+<div class="mb-3">
+    <div class="form-check">
+        <input type="checkbox" name="agree" id="agreeCheckbox" class="form-check-input">
+        <label class="form-check-label text-white small" for="agreeCheckbox">
+            Tôi đã đọc và đồng ý với 
+            <a href="{{ route('privacy') }}" class="text-sky-400 hover:text-white transition">Chính sách bảo mật</a> 
+            & 
+            <a href="{{ route('terms') }}" class="text-sky-400 hover:text-white transition">Điều khoản dịch vụ</a>
+        </label>
+    </div>
+</div>
+
+    <!-- Nút Đăng nhập với trạng thái disabled mặc định -->
+    <button type="submit" id="loginButton" class="btn btn-steam w-100 py-2" disabled>
+        Đăng nhập
+    </button>
+</form>
+
+<script>
+    const checkbox = document.getElementById('agreeCheckbox');
+    const button = document.getElementById('loginButton');
+
+    checkbox.addEventListener('change', function() {
+        // Nút sẽ được bật (disabled = false) nếu checkbox được chọn
+        button.disabled = !this.checked;
+    });
+</script>
               @if ($errors->any())
     <div class="alert alert-danger">
         <ul>

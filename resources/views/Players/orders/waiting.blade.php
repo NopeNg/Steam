@@ -74,7 +74,7 @@
                 <h2 class="text-white text-lg font-bold mb-2">Đang chờ thanh toán...</h2>
                 <p class="text-xs text-[#8f98a0] mb-6">
                     Vui lòng quét mã QR dưới đây để hoàn tất giao dịch.<br>
-                    Hết hạn thanh toán sau: <span id="countdown-30s" class="text-amber-400 font-bold text-sm">30</span> giây.
+                    Hết hạn thanh toán sau: <span id="countdown-5s" class="text-amber-400 font-bold text-sm">5</span> giây.
                 </p>
 
                 <div class="bg-white p-2 rounded-sm inline-block mb-6">
@@ -117,16 +117,16 @@
         document.addEventListener('DOMContentLoaded', function () {
             @if($order->status !== 'API_Error' && $order->status !== 'Completed')
                 let timeLeft = 5;
-                const countdownEl = document.getElementById('countdown-30s');
+                const countdownEl = document.getElementById('countdown-5s');
 
-                // 1. Đếm ngược 30s giao diện
+                // 1. Đếm ngược 5s giao diện
                 const countdownTimer = setInterval(() => {
                     timeLeft--;
                     if (countdownEl) countdownEl.textContent = timeLeft;
 
                     if (timeLeft <= 0) {
                         clearInterval(countdownTimer);
-                        // Hết 30s -> Tự động gọi AJAX kích hoạt hàm lấy Key từ nhà cung cấp
+                        // Hết 5s -> Tự động gọi AJAX kích hoạt hàm lấy Key từ nhà cung cấp
                         executeOrderSupplier();
                     }
                 }, 1000);

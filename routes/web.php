@@ -9,7 +9,8 @@ use App\Http\Controllers\Players\{
     LibraryController,
     SocialController,
     GiftController,
-    PlayerAuthController
+    PlayerAuthController,
+    RedeemController
 };
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -64,12 +65,13 @@ Route::post('/cart/validate', [App\Http\Controllers\Players\CartController::clas
         Route::post('/{order_id}/execute', [App\Http\Controllers\Players\OrderController::class, 'executeOrder'])->name('orders.execute');
     });
 
-    Route::prefix('library')->group(function () {
-        Route::get('/', [LibraryController::class, 'index'])->name('library.index');
-        Route::get('/redeem', [LibraryController::class, 'redeemView'])->name('library.redeem');
-        Route::post('/redeem', [LibraryController::class, 'activate'])->name('library.redeem.post');
-        Route::post('/activate', [LibraryController::class, 'activate'])->name('library.activate');
-    });
+  Route::prefix('library')->group(function () {
+    Route::get('/', [LibraryController::class, 'index'])->name('library.index');
+    Route::get('/redeem', [RedeemController::class, 'redeemView'])->name('library.redeem');
+    Route::post('/redeem', [RedeemController::class, 'activate'])->name('library.redeem.post');
+    Route::post('/activate', [RedeemController::class, 'activate'])->name('library.activate');
+});
+
 
     Route::prefix('social')->group(function () {
         Route::get('/', [SocialController::class, 'index'])->name('social.index');
