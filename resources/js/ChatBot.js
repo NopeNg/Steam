@@ -38,6 +38,11 @@
         .qr:hover{background:#38b2ac;color:#fff}
         #cb-msgs::-webkit-scrollbar{width:4px}
         #cb-msgs::-webkit-scrollbar-thumb{background:#2a475e;border-radius:4px}
+        .typing{display:inline-flex;gap:4px;padding:8px 12px}
+        .typing span{width:6px;height:6px;background:#38b2ac;border-radius:50%;animation:typing 1.4s infinite}
+        .typing span:nth-child(2){animation-delay:.2s}
+        .typing span:nth-child(3){animation-delay:.4s}
+        @keyframes typing{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
     </style>
     <button id="cb-btn">💬</button>
     <div id="cb">
@@ -67,6 +72,22 @@
         msgs.scrollTop = msgs.scrollHeight;
     }
 
+    // Show typing indicator
+    function showTyping() {
+        const d = document.createElement('div');
+        d.className = 'b typing';
+        d.id = 'typing-indicator';
+        d.innerHTML = '<span></span><span></span><span></span>';
+        msgs.appendChild(d);
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    // Remove typing indicator
+    function hideTyping() {
+        const typing = document.getElementById('typing-indicator');
+        if (typing) typing.remove();
+    }
+
     // Welcome
     add('👋 Xin chào! Chào mừng tới cửa hàng key game bản quyền SteamKey! Chúng tôi có thể giúp gì cho bạn ?', 'b');
     add('vui lòng chọn chủ đề hoặc nhập câu hỏi bên dưới:', 'b');
@@ -88,6 +109,7 @@
         if (!msg) return;
         txt.value = '';
         add(msg, 'u');
+        showTyping();
 
         try {
             const res = await fetch(API_URL, {
@@ -113,8 +135,10 @@
                 text = '⚠️ Server trả về lỗi (HTTP ' + res.status + '): ' + bodyText.substring(0, 200);
             }
             
+            hideTyping();
             add(text, text.startsWith('⚠️') ? 'err' : 'b');
         } catch (e) {
+            hideTyping();
             add('⚠️ Lỗi kết nối: ' + e.message, 'err');
         }
     }

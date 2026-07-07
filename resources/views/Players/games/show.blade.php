@@ -164,6 +164,8 @@
             <p class="text-[10px] text-[#556772] line-through leading-none mb-1"><?php echo number_format($version->price, 0, ',', '.'); ?>đ</p>
             <p class="text-[#beee11] text-sm font-bold leading-none"><?php echo number_format($version->discount_price, 0, ',', '.'); ?>đ</p>
         </div>
+    <?php elseif($version->price == 0): ?>
+        <span class="bg-green-500/20 text-green-400 text-xs font-bold px-3 py-1.5 rounded border border-green-500/30">MIỄN PHÍ</span>
     <?php else: ?>
         <span class="text-white text-sm font-semibold px-2"><?php echo number_format($version->price, 0, ',', '.'); ?>đ</span>
     <?php endif; ?>

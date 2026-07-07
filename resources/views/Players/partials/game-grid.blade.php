@@ -35,6 +35,9 @@
                                 <span></span>
                                 <p class="text-white text-xs font-semibold">{{ number_format($lowestPriceVersion->price, 0, ',', '.') }}đ</p>
                             @endif
+                        @elseif($lowestPriceVersion && $lowestPriceVersion->price == 0)
+                            <span class="bg-green-500/20 text-green-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-green-500/30">MIỄN PHÍ</span>
+                            <p class="text-green-400 text-xs font-semibold">Miễn phí</p>
                         @else
                             <span></span>
                             <p class="text-amber-400 text-xs font-medium">Chưa có giá</p>

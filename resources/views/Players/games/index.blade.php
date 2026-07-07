@@ -32,10 +32,9 @@
                     <div>
                         <label class="text-xs text-[#8f98a0] block mb-1">Trạng thái game</label>
                         <select name="status" class="w-full bg-[#101822] text-[#8f98a0] text-sm px-3 py-2 rounded-sm border border-[#2a475e]/50 focus:outline-none focus:border-sky-400 transition-all">
-                            <option value="Active" {{ $currentStatus == 'Active' ? 'selected' : '' }}>⚡ Sẵn sàng cấp Key</option>
-                            <option value="Inactive" {{ $currentStatus == 'Inactive' ? 'selected' : '' }}>❌ Tạm hết hàng</option>
-                            <option value="ComingSoon" {{ $currentStatus == 'ComingSoon' ? 'selected' : '' }}>⏳ Sắp ra mắt</option>
-                            <option value="Archived" {{ $currentStatus == 'Archived' ? 'selected' : '' }}>🚫 Ngừng kinh doanh</option>
+                            <option value="">-- Tất cả --</option>
+                            <option value="Active" {{ $currentStatus == 'Active' ? 'selected' : '' }}>⚡ Game sẵn bán</option>
+                            <option value="ComingSoon" {{ $currentStatus == 'ComingSoon' ? 'selected' : '' }}>⏳ Game sắp ra mắt</option>
                         </select>
                     </div>
 
@@ -129,9 +128,12 @@
                                             <span></span>
                                             <p class="text-white text-xs font-semibold">{{ number_format($lowestPriceVersion->price, 0, ',', '.') }}đ</p>
                                         @endif
+                                    @elseif($lowestPriceVersion && $lowestPriceVersion->price == 0)
+                                        <span class="bg-green-500/20 text-green-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-green-500/30">MIỄN PHÍ</span>
+                                        <p class="text-green-400 text-xs font-semibold">Miễn phí</p>
                                     @else
                                         <span></span>
-                                        <p class="text-amber-400 text-xs font-medium">Chưa có giá</p>
+                                        <p class="text-[#8f98a0] text-xs font-medium">Chưa có giá</p>
                                     @endif
                                 </div>
                             </div>
