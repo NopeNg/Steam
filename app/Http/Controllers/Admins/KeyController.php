@@ -141,10 +141,15 @@ class KeyController extends Controller
             return back()->withErrors(['error' => 'Không tìm thấy thông tin đơn hàng hoặc người chơi.']);
         }
 
+        // Kiểm tra đơn hàng đã bị huỷ (hoàn tiền cả đơn) trước đó chưa
+        if ($order->status === 'Cancelled') {
+            return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền toàn bộ. Không thể hoàn tiền từng key.']);
+        }
+
         // Tính tiền hoàn: price của 1 key 
         $refundAmount = $orderItem->price_at_purchase ;
 
-        DB::transaction(function () use ($gameKey, $player, $refundAmount) {
+        DB::transaction(function () use ($gameKey, $player, $refundAmount, $order) {
             // Cập nhật status key thành Revoked và lưu dấu hiệu đã hoàn tiền
             $gameKey->update([
                 'status' => 'Revoked',
@@ -153,6 +158,9 @@ class KeyController extends Controller
 
             // Hoàn tiền vào ví
             $player->increment('balance', $refundAmount);
+
+            // Giảm total_amount của đơn hàng để tính lại doanh thu chính xác
+            $order->decrement('total_amount', $refundAmount);
         });
 
         $this->activityLog->log('Hoàn tiền key', 'Đã hoàn ' . number_format($refundAmount, 0, ',', '.') . ' VNĐ cho key ID: ' . $gameKey->id . ' (game: ' . ($gameKey->orderItem->version->game->name ?? 'N/A') . ', đơn hàng #' . $order->id . ')');
@@ -195,7 +203,7 @@ class KeyController extends Controller
             ]);
 
             // Cập nhật library với key mới
-            \App\Models\Library::where('game_key_id', $gameKey->id)->update([
+            Library::where('game_key_id', $gameKey->id)->update([
                 'key_code' => trim($request->new_key_code),
             ]);
         });

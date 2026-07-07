@@ -41,7 +41,7 @@
                         class="hover:text-white transition {{ request()->routeIs('games.*') ? 'text-sky-400' : '' }}">Trò
                         Chơi</a>
                     <a href="#" class="hover:text-white transition">Cộng Đồng</a>
-                    <a href="#" class="hover:text-white transition">Hỗ Trợ</a>
+                    <a href="{{ route('refund') }}" class="hover:text-white transition">Hỗ Trợ</a>
                 </nav>
             </div>
             

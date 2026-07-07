@@ -71,15 +71,29 @@ class OrderController extends Controller
 
     public function refund($id)
     {
-        $order = \App\Models\Order::with(['player', 'orderItems'])->findOrFail($id);
+        $order = \App\Models\Order::with(['player', 'orderItems.gameKeys'])->findOrFail($id);
+
+        // Kiểm tra đã hoàn tiền trước đó chưa (chống double refund) - dựa vào status Cancelled
+        if ($order->status === 'Cancelled') {
+            return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền trước đó. Không thể hoàn tiền lần nữa.']);
+        }
 
         if ($order->status !== 'API_Error') {
             return back()->withErrors(['error' => 'Chỉ có thể hoàn tiền cho đơn hàng bị lỗi API.']);
         }
 
-        // Kiểm tra đã hoàn tiền trước đó chưa (chống double refund) - dựa vào status Cancelled
-        if ($order->status === 'Cancelled') {
-            return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền trước đó. Không thể hoàn tiền lần nữa.']);
+        // Lấy tất cả key trong đơn hàng
+        $allKeys = $order->orderItems->flatMap(function ($item) {
+            return $item->gameKeys;
+        });
+
+        // Kiểm tra xem có key nào đã được refund riêng lẻ trước đó không
+        $hasRefundedKey = $allKeys->contains(function ($key) {
+            return str_starts_with($key->supplier_transaction_id ?? '', 'REFUNDED:');
+        });
+
+        if ($hasRefundedKey) {
+            return back()->withErrors(['error' => 'Đã có key trong đơn hàng này được hoàn tiền riêng lẻ trước đó. Chỉ có thể hoàn tiền 1 lần duy nhất cho toàn bộ đơn hàng. Vui lòng hoàn tiền từng key riêng lẻ cho các key còn lại.']);
         }
 
         // Kiểm tra đã cấp key thủ công chưa (không tính fallback key do API lỗi)
@@ -91,12 +105,26 @@ class OrderController extends Controller
             return back()->withErrors(['error' => 'Đơn hàng này đã được cấp key. Không thể hoàn tiền sau khi đã cấp key.']);
         }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($order) {
-            $order->player->increment('balance', $order->total_amount);
+        // Tính số tiền cần hoàn
+        $refundAmount = $order->total_amount;
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $allKeys, $refundAmount) {
+            // Hoàn tiền vào ví
+            $order->player->increment('balance', $refundAmount);
+
+            // Đánh dấu tất cả key là đã refund
+            foreach ($allKeys as $key) {
+                $key->update([
+                    'status' => 'Revoked',
+                    'supplier_transaction_id' => 'REFUNDED: ' . $key->key_code,
+                ]);
+            }
+
+            // Hủy đơn hàng
             $order->update(['status' => 'Cancelled']);
         });
 
-        $this->activityLog->log('Hoàn tiền đơn hàng', 'Đã hoàn ' . number_format($order->total_amount) . ' VNĐ cho đơn hàng #' . $order->id . ' (người chơi ID: ' . $order->player_id . ')');
+        $this->activityLog->log('Hoàn tiền đơn hàng', 'Đã hoàn ' . number_format($refundAmount) . ' VNĐ cho đơn hàng #' . $order->id . ' (người chơi ID: ' . $order->player_id . ')');
 
         return back()->with('success', 'Đã hoàn tiền thành công vào ví người chơi và hủy đơn hàng.');
     }
