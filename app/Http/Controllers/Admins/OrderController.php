@@ -22,12 +22,24 @@ class OrderController extends Controller
 
         if ($request->filled('search')) {
             $search = trim($request->search);
-            $query->where(function ($q) use ($search) {
-                $q->where('id', 'like', '%' . $search . '%')
-                    ->orWhereHas('player', function ($q2) use ($search) {
-                        $q2->where('username', 'like', '%' . $search . '%')
-                            ->orWhere('email', 'like', '%' . $search . '%');
-                    });
+            // Hỗ trợ tìm kiếm theo #ORD-{id}
+            $searchId = null;
+            if (preg_match('/^#ORD[-\s]*(\d+)$/i', $search, $matches)) {
+                $searchId = $matches[1];
+            } elseif (is_numeric($search)) {
+                $searchId = $search;
+            }
+
+            $query->where(function ($q) use ($search, $searchId) {
+                if ($searchId !== null) {
+                    $q->where('id', $searchId);
+                } else {
+                    $q->where('id', 'like', '%' . $search . '%');
+                }
+                $q->orWhereHas('player', function ($q2) use ($search) {
+                    $q2->where('username', 'like', '%' . $search . '%')
+                        ->orWhere('email', 'like', '%' . $search . '%');
+                });
             });
         }
 
@@ -73,27 +85,22 @@ class OrderController extends Controller
     {
         $order = \App\Models\Order::with(['player', 'orderItems.gameKeys'])->findOrFail($id);
 
-        // Kiểm tra đã hoàn tiền trước đó chưa (chống double refund) - dựa vào status Cancelled
-        if ($order->status === 'Cancelled') {
-            return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền trước đó. Không thể hoàn tiền lần nữa.']);
-        }
-
-        if ($order->status !== 'API_Error') {
-            return back()->withErrors(['error' => 'Chỉ có thể hoàn tiền cho đơn hàng bị lỗi API.']);
-        }
-
-        // Lấy tất cả key trong đơn hàng
+        // Kiểm tra đã hoàn tiền trước đó chưa (chống double refund) - dựa vào key đã được đánh dấu REFUNDED
         $allKeys = $order->orderItems->flatMap(function ($item) {
             return $item->gameKeys;
         });
 
-        // Kiểm tra xem có key nào đã được refund riêng lẻ trước đó không
         $hasRefundedKey = $allKeys->contains(function ($key) {
             return str_starts_with($key->supplier_transaction_id ?? '', 'REFUNDED:');
         });
 
         if ($hasRefundedKey) {
-            return back()->withErrors(['error' => 'Đã có key trong đơn hàng này được hoàn tiền riêng lẻ trước đó. Chỉ có thể hoàn tiền 1 lần duy nhất cho toàn bộ đơn hàng. Vui lòng hoàn tiền từng key riêng lẻ cho các key còn lại.']);
+            return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền trước đó. Không thể hoàn tiền lần nữa.']);
+        }
+
+        // Cho phép hoàn tiền cho cả API_Error và Failed (đơn thất bại từ đầu chưa hoàn)
+        if (!in_array($order->status, ['API_Error', 'Failed'])) {
+            return back()->withErrors(['error' => 'Chỉ có thể hoàn tiền cho đơn hàng bị lỗi key hoặc thất bại.']);
         }
 
         // Kiểm tra đã cấp key thủ công chưa (không tính fallback key do API lỗi)
@@ -120,13 +127,13 @@ class OrderController extends Controller
                 ]);
             }
 
-            // Hủy đơn hàng
-            $order->update(['status' => 'Cancelled']);
+            // Chuyển trạng thái đơn hàng sang thất bại (Failed) thay vì Cancelled
+            $order->update(['status' => 'Failed']);
         });
 
         $this->activityLog->log('Hoàn tiền đơn hàng', 'Đã hoàn ' . number_format($refundAmount) . ' VNĐ cho đơn hàng #' . $order->id . ' (người chơi ID: ' . $order->player_id . ')');
 
-        return back()->with('success', 'Đã hoàn tiền thành công vào ví người chơi và hủy đơn hàng.');
+        return back()->with('success', '✅ Hoàn tiền thành công! Đã hoàn ' . number_format($refundAmount, 0, ',', '.') . ' VNĐ vào ví người chơi. Đơn hàng đã chuyển sang trạng thái thất bại.');
     }
     public function manualKey(Request $request, $id)
     {
@@ -140,8 +147,14 @@ class OrderController extends Controller
             return back()->withErrors(['error' => 'Chỉ có thể cấp Key thủ công cho đơn lỗi API.']);
         }
 
-        // Kiểm tra đã hoàn tiền chưa (dựa vào status Cancelled)
-        if ($order->status === 'Cancelled') {
+        // Kiểm tra đã hoàn tiền chưa (dựa vào key đã REFUNDED)
+        $allKeys = $order->orderItems->flatMap(function ($item) {
+            return $item->gameKeys;
+        });
+        $hasRefundedKey = $allKeys->contains(function ($key) {
+            return str_starts_with($key->supplier_transaction_id ?? '', 'REFUNDED:');
+        });
+        if ($hasRefundedKey) {
             return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền. Không thể cấp key sau khi hoàn tiền.']);
         }
 

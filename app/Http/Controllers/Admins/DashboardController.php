@@ -44,6 +44,33 @@ class DashboardController extends Controller
             ->count();
         $revenueWeek = Order::where('status', 'Completed')->where('created_at', '>=', $startOfWeek)->sum('total_amount');
         $revenueMonth = Order::where('status', 'Completed')->where('created_at', '>=', $startOfMonth)->sum('total_amount');
+
+        // Tính tổng số tiền đã hoàn (refund) dựa trên key có supplier_transaction_id bắt đầu bằng 'REFUNDED:'
+        $totalRefunded = DB::table('game_keys')
+            ->join('order_items', 'game_keys.order_item_id', '=', 'order_items.id')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->where('game_keys.supplier_transaction_id', 'like', 'REFUNDED:%')
+            ->whereBetween('orders.created_at', [$start, $end])
+            ->sum('order_items.price_at_purchase');
+
+        $totalRefundedWeek = DB::table('game_keys')
+            ->join('order_items', 'game_keys.order_item_id', '=', 'order_items.id')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->where('game_keys.supplier_transaction_id', 'like', 'REFUNDED:%')
+            ->where('orders.created_at', '>=', $startOfWeek)
+            ->sum('order_items.price_at_purchase');
+
+        $totalRefundedMonth = DB::table('game_keys')
+            ->join('order_items', 'game_keys.order_item_id', '=', 'order_items.id')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->where('game_keys.supplier_transaction_id', 'like', 'REFUNDED:%')
+            ->where('orders.created_at', '>=', $startOfMonth)
+            ->sum('order_items.price_at_purchase');
+
+        // Doanh thu thực tế = doanh thu - tiền đã hoàn
+        $netRevenue = $totalRevenue - $totalRefunded;
+        $netRevenueWeek = $revenueWeek - $totalRefundedWeek;
+        $netRevenueMonth = $revenueMonth - $totalRefundedMonth;
         $newUsers = Player::where('created_at', '>=', $sub24h)->count();
         $recentOrders = Order::with('player')->orderBy('created_at', 'desc')->take(5)->get();
 
@@ -182,7 +209,8 @@ class DashboardController extends Controller
             'chart3Labels', 'chart3Completed', 'chart3Pending', 'chart3ApiError', 'chart3Failed',
             'chart4Labels', 'chart4Counts', 'chart4Revenues',
             'chart5Labels', 'chart5Sold', 'chart5Revenue',
-            'orders'
+            'orders',
+            'netRevenue', 'netRevenueWeek', 'netRevenueMonth', 'totalRefunded'
         ));
     }
 }

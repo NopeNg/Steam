@@ -75,8 +75,8 @@
         <div class="card text-center border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-primary mb-1"><i class="fas fa-dollar-sign fa-2x"></i></div>
-                <h6 class="text-muted">Tổng doanh thu</h6>
-                <h4 class="fw-bold">{{ number_format($totalRevenue, 0, ',', '.') }} VNĐ</h4>
+                <h6 class="text-muted">Doanh thu thực tế</h6>
+                <h4 class="fw-bold">{{ number_format($netRevenue, 0, ',', '.') }} VNĐ</h4>
             </div>
         </div>
     </div>
@@ -442,7 +442,7 @@
 
 @elseif($tab === 'inventory')
 <div class="row g-4 mb-4">
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="card text-center border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-secondary mb-1"><i class="fas fa-key fa-2x"></i></div>
@@ -451,21 +451,12 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="card text-center border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-danger mb-1"><i class="fas fa-exclamation-triangle fa-2x"></i></div>
                 <h6 class="text-muted">Key lỗi</h6>
                 <h4 class="fw-bold">{{ $errorKeys }}</h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card text-center border-0 shadow-sm">
-            <div class="card-body">
-                <div class="text-primary mb-1"><i class="fas fa-chart-line fa-2x"></i></div>
-                <h6 class="text-muted">Đã bán</h6>
-                <h4 class="fw-bold">{{ $soldKeys }}</h4>
             </div>
         </div>
     </div>

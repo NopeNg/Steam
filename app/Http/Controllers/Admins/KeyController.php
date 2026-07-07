@@ -117,7 +117,7 @@ class KeyController extends Controller
      */
     public function refundKey($id)
     {
-        $gameKey = GameKey::with('orderItem.order.player')->findOrFail($id);
+        $gameKey = GameKey::with('orderItem.order.player', 'orderItem.order.orderItems.gameKeys')->findOrFail($id);
 
         if ($gameKey->status === 'Revoked') {
             return back()->withErrors(['error' => 'Key này đã bị thu hồi. Không thể hoàn tiền.']);
@@ -141,8 +141,14 @@ class KeyController extends Controller
             return back()->withErrors(['error' => 'Không tìm thấy thông tin đơn hàng hoặc người chơi.']);
         }
 
-        // Kiểm tra đơn hàng đã bị huỷ (hoàn tiền cả đơn) trước đó chưa
-        if ($order->status === 'Cancelled') {
+        // Kiểm tra đơn hàng đã được hoàn tiền toàn bộ trước đó chưa (dựa vào key đã REFUNDED)
+        $allKeysInOrder = $order->orderItems->flatMap(function ($item) {
+            return $item->gameKeys;
+        });
+        $allRefunded = $allKeysInOrder->every(function ($k) {
+            return str_starts_with($k->supplier_transaction_id ?? '', 'REFUNDED:');
+        });
+        if ($allRefunded) {
             return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền toàn bộ. Không thể hoàn tiền từng key.']);
         }
 
@@ -159,8 +165,8 @@ class KeyController extends Controller
             // Hoàn tiền vào ví
             $player->increment('balance', $refundAmount);
 
-            // Giảm total_amount của đơn hàng để tính lại doanh thu chính xác
-            $order->decrement('total_amount', $refundAmount);
+            // Không thay đổi total_amount của đơn hàng trong DB,
+            // số tiền đã hoàn sẽ được hiển thị ở view dựa trên các key có supplier_transaction_id bắt đầu bằng 'REFUNDED:'
         });
 
         $this->activityLog->log('Hoàn tiền key', 'Đã hoàn ' . number_format($refundAmount, 0, ',', '.') . ' VNĐ cho key ID: ' . $gameKey->id . ' (game: ' . ($gameKey->orderItem->version->game->name ?? 'N/A') . ', đơn hàng #' . $order->id . ')');

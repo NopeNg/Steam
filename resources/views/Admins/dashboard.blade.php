@@ -20,8 +20,8 @@
                 <div class="col-6 col-md-4 col-xl">
                     <div class="border rounded-3 p-3 text-center h-100">
                         <div class="fs-1 text-primary mb-2"><i class="fas fa-dollar-sign"></i></div>
-                        <h5 class="mb-0 fw-bold">{{ number_format($totalRevenue, 0, ',', '.') }}đ</h5>
-                        <small class="text-muted">Tổng doanh thu</small>
+                        <h5 class="mb-0 fw-bold">{{ number_format($netRevenue, 0, ',', '.') }}đ</h5>
+                        <small class="text-muted">Doanh thu thực tế</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">

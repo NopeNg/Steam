@@ -6,17 +6,27 @@
     @php
         // Tính tổng số tiền đã refund
         $refundedTotal = 0;
+        $allRefunded = false;
         $allOrderKeys = collect();
         if (isset($order->orderItems)) {
             $allOrderKeys = $order->orderItems->flatMap(function($item) {
                 return $item->gameKeys;
             });
+            $totalKeys = $allOrderKeys->count();
+            $refundedCount = 0;
             foreach ($allOrderKeys as $k) {
                 if (isset($k->supplier_transaction_id) && str_starts_with($k->supplier_transaction_id, 'REFUNDED:')) {
                     $refundedTotal += ($k->orderItem->price_at_purchase ?? 0);
+                    $refundedCount++;
                 }
             }
+            // Nếu tất cả key đều đã refund và đơn có key
+            if ($totalKeys > 0 && $refundedCount === $totalKeys) {
+                $allRefunded = true;
+            }
         }
+        // Nếu đơn lỗi key/thất bại và đã hoàn tiền toàn bộ => hiển thị tổng = 0
+        $displayTotalAmount = (in_array($order->status, ['API_Error', 'Failed']) && $allRefunded) ? 0 : $order->total_amount;
     @endphp
     <div class="container-fluid py-4">
         <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
@@ -94,7 +104,7 @@
                             </button>
                         </form>
 
-                        @if($order->status == 'API_Error')
+                        @if(in_array($order->status, ['API_Error', 'Failed']))
                         <hr class="border-secondary">
                         <form action="{{ route('admin.orders.refund', $order->id) }}" method="POST">
                             @csrf
@@ -108,7 +118,7 @@
                 </div>
 
                 {{-- Quản lý key --}}
-                @if(in_array($order->status, ['Completed', 'API_Error']))
+                @if(in_array($order->status, ['Completed', 'API_Error', 'Failed']))
                     @if($allOrderKeys->isNotEmpty())
                         <div class="card border-0 shadow-sm rounded-3">
                             <div class="card-body p-4">
@@ -141,7 +151,7 @@
                                         @endif
                                     </div>
                                     <div class="d-flex gap-1">
-                                        @if($order->status == 'API_Error')
+                                        @if(in_array($order->status, ['API_Error', 'Failed']))
                                         <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#replaceKeyModal{{ $key->id }}">
                                             <i class="fas fa-exchange-alt me-1"></i> Đổi key
                                         </button>
@@ -329,7 +339,7 @@
                     <div class="card-footer bg-transparent border-0 p-4">
                         <div class="d-flex justify-content-end align-items-center gap-3">
                             <span class="fs-5 text-muted">Tổng cộng thanh toán:</span>
-                            <span class="fs-3 fw-bold text-danger">{{ number_format($order->total_amount, 0, ',', '.') }}đ</span>
+                            <span class="fs-3 fw-bold text-danger">{{ number_format($displayTotalAmount, 0, ',', '.') }}đ</span>
                         </div>
                         @if($refundedTotal > 0)
                         <div class="d-flex justify-content-end align-items-center gap-3 mt-1">
@@ -342,7 +352,7 @@
         </div>
     </div>
 
-    @if($order->status == 'API_Error')
+    @if(in_array($order->status, ['API_Error', 'Failed']))
     <div class="modal fade" id="manualKeyModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content bg-dark text-white border-secondary">
