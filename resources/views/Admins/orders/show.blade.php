@@ -106,12 +106,19 @@
 
                         @if(in_array($order->status, ['API_Error', 'Failed']))
                         <hr class="border-secondary">
-                        <form action="{{ route('admin.orders.refund', $order->id) }}" method="POST">
-                            @csrf
-                            <button type="submit" class="btn btn-success w-100 fw-bold btn-sm" onclick="return confirm('Xác nhận hoàn tiền toàn bộ đơn hàng #ORD-{{ $order->id }}? Số tiền {{ number_format($order->total_amount, 0, ',', '.') }}đ sẽ được hoàn vào ví người chơi.')">
-                                <i class="fas fa-undo me-1"></i> Hoàn tiền toàn bộ đơn hàng
-                            </button>
-                        </form>
+                        
+                        @if($allRefunded)
+                            <div class="alert alert-info border-0 rounded-3 mb-0">
+                                <i class="fas fa-check-circle me-2"></i>Đơn đã được hoàn
+                            </div>
+                        @else
+                            <form action="{{ route('admin.orders.refund', $order->id) }}" method="POST" id="refundAllForm" onsubmit="disableRefundButton(this)">
+                                @csrf
+                                <button type="submit" class="btn btn-success w-100 fw-bold btn-sm" id="refundButton">
+                                    <i class="fas fa-undo me-1"></i> Hoàn tiền toàn bộ đơn hàng
+                                </button>
+                            </form>
+                        @endif
                         @endif
 
                     </div>
@@ -380,3 +387,16 @@
     </div>
     @endif
 @endsection
+
+@push('scripts')
+<script>
+function disableRefundButton(form) {
+    const button = form.querySelector('#refundButton');
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Đang xử lý...';
+    }
+    return true;
+}
+</script>
+@endpush

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ActivityLog;
+use Carbon\Carbon;
 
 class ActivityLogService
 {
@@ -41,12 +42,18 @@ class ActivityLogService
             });
         }
 
-        // Date range filter
+        // Date range filter (convert to UTC for database comparison)
         if (!empty($filters['start_date'])) {
-            $query->whereDate('created_at', '>=', $filters['start_date']);
+            $startDate = Carbon::createFromFormat('Y-m-d', $filters['start_date'], 'Asia/Ho_Chi_Minh')
+                ->startOfDay()
+                ->setTimezone('UTC');
+            $query->where('created_at', '>=', $startDate);
         }
         if (!empty($filters['end_date'])) {
-            $query->whereDate('created_at', '<=', $filters['end_date']);
+            $endDate = Carbon::createFromFormat('Y-m-d', $filters['end_date'], 'Asia/Ho_Chi_Minh')
+                ->endOfDay()
+                ->setTimezone('UTC');
+            $query->where('created_at', '<=', $endDate);
         }
 
         return $query->orderBy('created_at', 'desc')->paginate($perPage);

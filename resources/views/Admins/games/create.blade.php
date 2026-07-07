@@ -79,8 +79,12 @@
                     <div class="card-body p-4">
                         <h5 class="fw-bold mb-3 text-primary">Ảnh bìa (Bảng games)</h5>
                         <div class="mb-3">
-                            <label for="cover_image" class="form-label fw-bold">Tải lên ảnh bìa chính <span class="text-danger">*</span></label>
-                            <input class="form-control" type="file" id="cover_image" name="cover_image" accept="image/*" required>
+                            <label for="cover_image" class="form-label fw-bold">Tải lên ảnh bìa chính</label>
+                            <input class="form-control" type="file" id="cover_image" name="cover_image" accept="image/*">
+                        </div>
+                        <div class="mb-3">
+                            <label for="cover_image_url" class="form-label fw-bold">Hoặc nhập URL ảnh bìa</label>
+                            <input type="text" class="form-control" id="cover_image_url" name="cover_image_url" placeholder="https://example.com/image.jpg">
                         </div>
                     </div>
                 </div>
@@ -95,20 +99,11 @@
 
                         <div id="image-upload-container">
                             <div class="row g-2 align-items-center mb-3 upload-row">
-                                <div class="col-md-4">
+                                <div class="col-md-5">
                                     <input type="file" class="form-control" name="gallery_images[]" accept="image/*">
                                 </div>
-                                <div class="col-md-3">
-                                    <select class="form-select" name="gallery_types[]">
-                                        <option value="Banner">Loại: Banner</option>
-                                        <option value="Screenshot">Loại: Screenshot</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <select class="form-select" name="gallery_parts[]">
-                                        <option value="Main Page">Vị trí: Main Page</option>
-                                        <option value="Gameplay">Vị trí: Gameplay</option>
-                                    </select>
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control" name="gallery_urls[]" placeholder="Hoặc nhập URL ảnh (https://...)">
                                 </div>
                                 <div class="col-md-2">
                                     <button type="button" class="btn btn-danger remove-row-btn" disabled><i class="fas fa-times"></i></button>

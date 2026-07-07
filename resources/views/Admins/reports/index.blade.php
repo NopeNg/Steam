@@ -65,7 +65,7 @@
 
 @if($tab === 'revenue')
 <div class="row g-4 mb-4">
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card text-center border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-primary mb-1"><i class="fas fa-dollar-sign fa-2x"></i></div>
@@ -74,7 +74,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card text-center border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-success mb-1"><i class="fas fa-shopping-cart fa-2x"></i></div>
@@ -83,21 +83,12 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card text-center border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-info mb-1"><i class="fas fa-check-circle fa-2x"></i></div>
                 <h6 class="text-muted">Đơn hoàn thành</h6>
                 <h4 class="fw-bold">{{ $completedOrders }}</h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center border-0 shadow-sm">
-            <div class="card-body">
-                <div class="text-warning mb-1"><i class="fas fa-chart-line fa-2x"></i></div>
-                <h6 class="text-muted">AOV trung bình</h6>
-                <h4 class="fw-bold">{{ number_format($avgOrderValue, 0, ',', '.') }} VNĐ</h4>
             </div>
         </div>
     </div>

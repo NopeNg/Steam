@@ -38,6 +38,10 @@ class GameController extends Controller
 
     public function store(Request $request)
     {
+        $data = $request->only([
+            'name', 'publisher', 'developer', 'description', 'requirements', 'status', 'release_date'
+        ]);
+
         $request->validate([
             'name' => 'required|string|max:255',
             'publisher' => 'nullable|string|max:255',
@@ -46,19 +50,13 @@ class GameController extends Controller
             'requirements' => 'nullable|string',
             'status' => 'required|in:Active,Inactive,ComingSoon,Archived',
             'release_date' => 'nullable|date',
-            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            'gallery_types.*' => 'nullable|string',
-            'gallery_parts.*' => 'nullable|string',
+            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
+            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
         ], [
             'name.required' => 'Tên game không được để trống.',
             'status.in' => 'Trạng thái không hợp lệ.',
             'cover_image.image' => 'Ảnh bìa phải là file ảnh.',
             'gallery_images.*.image' => 'Ảnh gallery phải là file ảnh.',
-        ]);
-
-        $data = $request->only([
-            'name', 'publisher', 'developer', 'description', 'requirements', 'status', 'release_date'
         ]);
 
         // TỰ ĐỘNG: Nếu release_date lớn hơn hôm nay → chuyển status thành ComingSoon
@@ -73,20 +71,39 @@ class GameController extends Controller
         // Tạo game mới
         $game = Game::create($data);
 
+        // Xử lý cover image - vừa upload file vừa nhập URL
         if ($request->hasFile('cover_image')) {
-            $path = $request->file('cover_image')->store('games', 'public');
+            $file = $request->file('cover_image');
+            $path = $file->store('games', 'public');
             $game->update(['cover_image' => '/storage/' . $path]);
+        } elseif ($request->filled('cover_image_url')) {
+            $game->update(['cover_image' => $request->cover_image_url]);
         }
 
+        // Xử lý gallery images - vừa upload file vừa nhập URL
         if ($request->hasFile('gallery_images')) {
-            foreach ($request->file('gallery_images') as $index => $file) {
+            foreach ($request->file('gallery_images') as $file) {
                 if ($file->isValid()) {
                     $path = $file->store('gallery', 'public');
                     GameImage::create([
                         'game_id' => $game->id,
                         'image_path' => '/storage/' . $path,
-                        'image_type' => $request->gallery_types[$index],
-                        'game_part' => $request->gallery_parts[$index]
+                        'image_type' => 'Screenshot',
+                        'game_part' => 'Gameplay'
+                    ]);
+                }
+            }
+        }
+        
+        // Xử lý gallery URLs
+        if ($request->filled('gallery_urls')) {
+            foreach ($request->gallery_urls as $url) {
+                if (!empty(trim($url))) {
+                    GameImage::create([
+                        'game_id' => $game->id,
+                        'image_path' => trim($url),
+                        'image_type' => 'Screenshot',
+                        'game_part' => 'Gameplay'
                     ]);
                 }
             }
@@ -119,10 +136,8 @@ class GameController extends Controller
             'requirements' => 'nullable|string',
             'status' => 'required|in:Active,Inactive,ComingSoon,Archived',
             'release_date' => 'nullable|date',
-            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            'gallery_types.*' => 'nullable|string',
-            'gallery_parts.*' => 'nullable|string',
+            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
+            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
         ], [
             'name.required' => 'Tên game không được để trống.',
             'status.in' => 'Trạng thái không hợp lệ.',
@@ -154,19 +169,36 @@ class GameController extends Controller
         }
 
         if ($request->hasFile('cover_image')) {
-            $path = $request->file('cover_image')->store('games', 'public');
+            $file = $request->file('cover_image');
+            $path = $file->store('games', 'public');
             $game->update(['cover_image' => '/storage/' . $path]);
+        } elseif ($request->filled('cover_image_url')) {
+            $game->update(['cover_image' => $request->cover_image_url]);
         }
 
         if ($request->hasFile('gallery_images')) {
-            foreach ($request->file('gallery_images') as $index => $file) {
+            foreach ($request->file('gallery_images') as $file) {
                 if ($file->isValid()) {
                     $path = $file->store('gallery', 'public');
                     GameImage::create([
                         'game_id' => $game->id,
                         'image_path' => '/storage/' . $path,
-                        'image_type' => $request->gallery_types[$index],
-                        'game_part' => $request->gallery_parts[$index]
+                        'image_type' => 'Screenshot',
+                        'game_part' => 'Gameplay'
+                    ]);
+                }
+            }
+        }
+        
+        // Xử lý gallery URLs
+        if ($request->filled('gallery_urls')) {
+            foreach ($request->gallery_urls as $url) {
+                if (!empty(trim($url))) {
+                    GameImage::create([
+                        'game_id' => $game->id,
+                        'image_path' => trim($url),
+                        'image_type' => 'Screenshot',
+                        'game_part' => 'Gameplay'
                     ]);
                 }
             }

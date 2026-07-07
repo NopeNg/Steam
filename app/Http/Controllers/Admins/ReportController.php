@@ -68,11 +68,6 @@ class ReportController extends Controller
         $pendingOrders = Order::where('status', 'Pending')->whereBetween('created_at', [$start, $end])->count();
         $apiErrorOrders = Order::where('status', 'API_Error')->whereBetween('created_at', [$start, $end])->count();
 
-        // AOV (Giá trị đơn hàng trung bình)
-        $avgOrderValue = $completedOrders > 0 
-            ? Order::where('status', 'Completed')->whereBetween('created_at', [$start, $end])->avg('total_amount') 
-            : 0;
-
         // Trạng thái đơn hàng (Donut chart)
         $orderStatusData = [
             $completedOrders, $pendingOrders, $apiErrorOrders, $cancelledOrders
@@ -209,7 +204,7 @@ class ReportController extends Controller
             'chartRevenueLabels', 'chartRevenueData', 'chartOrderCountData',
             'totalRevenue', 'totalOrders', 'completedOrders', 'cancelledOrders',
             'netRevenue', 'totalRefunded',
-            'pendingOrders', 'apiErrorOrders', 'avgOrderValue',
+            'pendingOrders', 'apiErrorOrders',
             'orderStatusData', 'orderStatusLabels',
             'paymentLabels', 'paymentCounts', 'paymentRevenues',
             'topGamesRevenue',

@@ -155,6 +155,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // === ACTIVITY LOGS ===
         Route::prefix('activity-logs')->name('activity-logs.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admins\ActivityLogController::class, 'index'])->name('index');
+            Route::get('/export', [\App\Http\Controllers\Admins\ActivityLogController::class, 'export'])->name('export');
         });
 
         Route::prefix('suppliers')->name('suppliers.')->group(function () {

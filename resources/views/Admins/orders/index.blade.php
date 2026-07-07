@@ -66,7 +66,23 @@
                                         @endif
                                     </td>
                                     <td>{{ \Carbon\Carbon::parse($order->created_at)->format('d/m/Y H:i') }}</td>
-                                    <td class="fw-bold text-danger">{{ number_format($order->total_amount, 0, ',', '.') }}đ</td>
+                                    @php
+                            $orderAllRefunded = false;
+                            if (isset($order->orderItems) && $order->orderItems->isNotEmpty()) {
+                                $allKeys = $order->orderItems->flatMap(function($item) {
+                                    return $item->gameKeys;
+                                });
+                                $totalKeys = $allKeys->count();
+                                $refundedCount = $allKeys->filter(function($k) {
+                                    return str_starts_with($k->supplier_transaction_id ?? '', 'REFUNDED:');
+                                })->count();
+                                if ($totalKeys > 0 && $refundedCount === $totalKeys) {
+                                    $orderAllRefunded = true;
+                                }
+                            }
+                            $displayAmount = (in_array($order->status, ['API_Error', 'Failed']) && $orderAllRefunded) ? 0 : $order->total_amount;
+                        @endphp
+                        <td class="fw-bold text-danger">{{ number_format($displayAmount, 0, ',', '.') }}đ</td>
                                     <td>
                                         <span
                                             class="badge bg-light text-dark border">{{ $order->payment_method ?? 'Chưa rõ' }}</span>

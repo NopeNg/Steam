@@ -85,6 +85,12 @@ class OrderController extends Controller
     {
         $order = \App\Models\Order::with(['player', 'orderItems.gameKeys'])->findOrFail($id);
 
+        // Kiểm tra session đã refund chưa (chống double submit)
+        $sessionKey = 'order_refunded_' . $order->id;
+        if (session()->has($sessionKey)) {
+            return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền. Không thể hoàn tiền lần nữa.']);
+        }
+
         // Kiểm tra đã hoàn tiền trước đó chưa (chống double refund) - dựa vào key đã được đánh dấu REFUNDED
         $allKeys = $order->orderItems->flatMap(function ($item) {
             return $item->gameKeys;
@@ -115,7 +121,7 @@ class OrderController extends Controller
         // Tính số tiền cần hoàn
         $refundAmount = $order->total_amount;
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $allKeys, $refundAmount) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $allKeys, $refundAmount, $sessionKey) {
             // Hoàn tiền vào ví
             $order->player->increment('balance', $refundAmount);
 
@@ -129,6 +135,9 @@ class OrderController extends Controller
 
             // Chuyển trạng thái đơn hàng sang thất bại (Failed) thay vì Cancelled
             $order->update(['status' => 'Failed']);
+
+            // Đánh dấu trong session đã refund để chống double submit
+            session()->put($sessionKey, true);
         });
 
         $this->activityLog->log('Hoàn tiền đơn hàng', 'Đã hoàn ' . number_format($refundAmount) . ' VNĐ cho đơn hàng #' . $order->id . ' (người chơi ID: ' . $order->player_id . ')');

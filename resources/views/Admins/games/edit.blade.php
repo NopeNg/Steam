@@ -81,8 +81,12 @@
                     <div class="card-body p-4">
                         <h5 class="fw-bold mb-3 text-primary">Ảnh bìa (Bảng games)</h5>
                         <div class="mb-3">
-                            <label for="cover_image" class="form-label fw-bold">Thay đổi ảnh bìa chính</label>
+                            <label for="cover_image" class="form-label fw-bold">Tải lên ảnh bìa chính</label>
                             <input class="form-control" type="file" id="cover_image" name="cover_image" accept="image/*">
+                        </div>
+                        <div class="mb-3">
+                            <label for="cover_image_url" class="form-label fw-bold">Hoặc nhập URL ảnh bìa</label>
+                            <input type="text" class="form-control" id="cover_image_url" name="cover_image_url" placeholder="https://example.com/image.jpg" value="{{ old('cover_image_url') }}">
                         </div>
                         <div class="border rounded-3 p-3 text-center bg-light">
                             <img src="{{ $game->cover_image }}" class="img-fluid rounded shadow-sm mb-2" style="max-height: 150px;">
@@ -103,8 +107,6 @@
                                 <div class="card h-100 border shadow-sm">
                                     <div class="position-relative">
                                         <img src="{{ $img->image_path }}" class="card-img-top" style="height: 140px; object-fit: cover;">
-                                        <span class="badge bg-primary position-absolute top-0 start-0 m-2">{{ $img->image_type }}</span>
-                                        <span class="badge bg-dark position-absolute top-0 end-0 m-2">{{ $img->game_part }}</span>
                                     </div>
                                     <div class="card-body p-2 text-center">
                                         <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="deleteImage({{ $img->id }}, this)">
@@ -119,20 +121,11 @@
                         <h6 class="fw-bold mb-3">Tải lên ảnh phụ mới</h6>
                         <div id="image-upload-container">
                             <div class="row g-2 align-items-center mb-3 upload-row">
-                                <div class="col-md-4">
+                                <div class="col-md-5">
                                     <input type="file" class="form-control" name="gallery_images[]" accept="image/*">
                                 </div>
-                                <div class="col-md-3">
-                                    <select class="form-select" name="gallery_types[]">
-                                        <option value="Banner">Loại: Banner</option>
-                                        <option value="Screenshot">Loại: Screenshot</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <select class="form-select" name="gallery_parts[]">
-                                        <option value="Main Page">Vị trí: Main Page</option>
-                                        <option value="Gameplay">Vị trí: Gameplay</option>
-                                    </select>
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control" name="gallery_urls[]" placeholder="Hoặc nhập URL ảnh (https://...)">
                                 </div>
                                 <div class="col-md-2">
                                     <button type="button" class="btn btn-danger remove-row-btn" disabled><i class="fas fa-times"></i></button>
