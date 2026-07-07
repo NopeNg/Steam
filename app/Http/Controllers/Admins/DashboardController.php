@@ -34,18 +34,9 @@ class DashboardController extends Controller
         $start = Carbon::parse($startDate)->startOfDay();
         $end = Carbon::parse($endDate)->endOfDay();
 
-        // ============ THỐNG KÊ NHANH ============
-        $totalRevenue = Order::where('status', 'Completed')->whereBetween('created_at', [$start, $end])->sum('total_amount');
-        $totalOrders = Order::whereBetween('created_at', [$start, $end])->count();
-        $totalUsers = Player::whereBetween('created_at', [$start, $end])->count();
-        $errorKeys = GameKey::where('status', '!=', 'Sold')
-            ->where('status', '!=', 'Giveaway')
-            ->where('status', '!=', 'Available')
-            ->count();
-        $revenueWeek = Order::where('status', 'Completed')->where('created_at', '>=', $startOfWeek)->sum('total_amount');
-        $revenueMonth = Order::where('status', 'Completed')->where('created_at', '>=', $startOfMonth)->sum('total_amount');
-
-        // Tính tổng số tiền đã hoàn (refund) dựa trên key có supplier_transaction_id bắt đầu bằng 'REFUNDED:'
+        // ============ THỐNG KÊ NHANH (KHÔNG THAY ĐỔI DB) ============
+        
+        // 1. Tổng số tiền đã hoàn (refund) từ các key có supplier_transaction_id bắt đầu bằng 'REFUNDED:'
         $totalRefunded = DB::table('game_keys')
             ->join('order_items', 'game_keys.order_item_id', '=', 'order_items.id')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
@@ -67,11 +58,27 @@ class DashboardController extends Controller
             ->where('orders.created_at', '>=', $startOfMonth)
             ->sum('order_items.price_at_purchase');
 
-        // Doanh thu thực tế = doanh thu - tiền đã hoàn
+        // 2. Doanh thu từ đơn hoàn thành (giữ nguyên total_amount trong DB)
+        $totalRevenue = Order::where('status', 'Completed')->whereBetween('created_at', [$start, $end])->sum('total_amount');
+        $revenueWeek = Order::where('status', 'Completed')->where('created_at', '>=', $startOfWeek)->sum('total_amount');
+        $revenueMonth = Order::where('status', 'Completed')->where('created_at', '>=', $startOfMonth)->sum('total_amount');
+
+        // 3. Doanh thu thực tế = doanh thu - tiền đã hoàn (không đụng DB)
         $netRevenue = $totalRevenue - $totalRefunded;
         $netRevenueWeek = $revenueWeek - $totalRefundedWeek;
         $netRevenueMonth = $revenueMonth - $totalRefundedMonth;
+
+        // 4. Tổng đơn hàng (tất cả trạng thái)
+        $totalOrders = Order::whereBetween('created_at', [$start, $end])->count();
+
+        // 5. Key lỗi = key có status = 'Revoked' (đã bị thu hồi)
+        $errorKeys = GameKey::where('status', 'Revoked')->count();
+
+        // 6. Người dùng mới
+        $totalUsers = Player::whereBetween('created_at', [$start, $end])->count();
         $newUsers = Player::where('created_at', '>=', $sub24h)->count();
+
+        // 7. Đơn hàng gần đây
         $recentOrders = Order::with('player')->orderBy('created_at', 'desc')->take(5)->get();
 
         // ============ TOP GAME BÁN CHẠY (dựa trên đơn hàng đã hoàn thành) ============
