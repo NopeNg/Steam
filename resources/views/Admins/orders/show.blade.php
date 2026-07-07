@@ -3,6 +3,31 @@
 @section('title', 'Chi tiết đơn hàng - GameKey')
 
 @section('content')
+    @php
+        // Tính tổng số tiền đã refund
+        $refundedTotal = 0;
+        $allRefunded = false;
+        $allOrderKeys = collect();
+        if (isset($order->orderItems)) {
+            $allOrderKeys = $order->orderItems->flatMap(function($item) {
+                return $item->gameKeys;
+            });
+            $totalKeys = $allOrderKeys->count();
+            $refundedCount = 0;
+            foreach ($allOrderKeys as $k) {
+                if (isset($k->supplier_transaction_id) && str_starts_with($k->supplier_transaction_id, 'REFUNDED:')) {
+                    $refundedTotal += ($k->orderItem->price_at_purchase ?? 0);
+                    $refundedCount++;
+                }
+            }
+            // Nếu tất cả key đều đã refund và đơn có key
+            if ($totalKeys > 0 && $refundedCount === $totalKeys) {
+                $allRefunded = true;
+            }
+        }
+        // Nếu đơn lỗi key/thất bại và đã hoàn tiền toàn bộ => hiển thị tổng = 0
+        $displayTotalAmount = (in_array($order->status, ['API_Error', 'Failed']) && $allRefunded) ? 0 : $order->total_amount;
+    @endphp
     <div class="container-fluid py-4">
         <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
             <h1 class="h3 fw-bold">Chi tiết đơn hàng #ORD-{{ $order->id }}</h1>
@@ -79,51 +104,68 @@
                             </button>
                         </form>
 
-                        @if($order->status == 'API_Error')
-                            <div class="mt-4 p-3 bg-dark border border-warning rounded">
-                                <h6 class="text-warning fw-bold mb-2"><i class="fas fa-exclamation-triangle"></i> Hướng dẫn xử lý</h6>
-                                <small class="text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Khi đơn hàng ở trạng thái "lỗi Key", bạn có thể xử lý từng key riêng lẻ ở phần <strong>"Danh sách Key trong đơn"</strong> bên dưới với các tùy chọn: <strong>Đổi key</strong> (cấp key mới thay thế), <strong>Hoàn tiền</strong> (hoàn tiền key đó vào ví), hoặc <strong>Thu hồi</strong> (vô hiệu hóa key).
-                                </small>
-                            </div>
+                        @if(in_array($order->status, ['API_Error', 'Failed']))
+                        <hr class="border-secondary">
+                        <form action="{{ route('admin.orders.refund', $order->id) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn-success w-100 fw-bold btn-sm" onclick="return confirm('Xác nhận hoàn tiền toàn bộ đơn hàng #ORD-{{ $order->id }}? Số tiền {{ number_format($order->total_amount, 0, ',', '.') }}đ sẽ được hoàn vào ví người chơi.')">
+                                <i class="fas fa-undo me-1"></i> Hoàn tiền toàn bộ đơn hàng
+                            </button>
+                        </form>
                         @endif
 
                     </div>
                 </div>
 
                 {{-- Quản lý key --}}
-                @if(in_array($order->status, ['Completed', 'API_Error']))
-                    @php
-                        // Hiển thị tất cả key không bị thu hồi (bao gồm Sold, Delivered, Activated)
-                        $deliverableKeys = $order->orderItems->flatMap(function($item) {
-                            return $item->gameKeys->where('status', '!=', 'Revoked');
-                        });
-                    @endphp
-                    @if($deliverableKeys->isNotEmpty())
+                @if(in_array($order->status, ['Completed', 'API_Error', 'Failed']))
+                    @if($allOrderKeys->isNotEmpty())
                         <div class="card border-0 shadow-sm rounded-3">
                             <div class="card-body p-4">
                                 <h5 class="fw-bold mb-3"><i class="fas fa-key me-2 text-info"></i>Danh sách Key trong đơn</h5>
-                                @foreach($deliverableKeys as $key)
+                                @php
+                                    // Chia key thành 2 nhóm: chưa refund và đã refund
+                                    $activeKeys = $allOrderKeys->filter(function($k) {
+                                        return !str_starts_with($k->supplier_transaction_id ?? '', 'REFUNDED:');
+                                    });
+                                    $refundedKeys = $allOrderKeys->filter(function($k) {
+                                        return str_starts_with($k->supplier_transaction_id ?? '', 'REFUNDED:');
+                                    });
+                                @endphp
+
+                                @foreach($activeKeys as $key)
+                                @php
+                                    $isReplaced = str_starts_with($key->supplier_transaction_id ?? '', 'REPLACED:');
+                                @endphp
                                 <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-dark rounded border border-gray-700">
                                     <div>
                                         <small class="text-muted d-block">Key: <span class="text-info">{{ $key->key_code }}</span></small>
                                         @if($key->orderItem->gameVersion && $key->orderItem->gameVersion->game)
                                             <small class="text-muted">{{ $key->orderItem->gameVersion->game->name }} ({{ $key->orderItem->gameVersion->version_name }})</small>
                                         @endif
+                                        @if($isReplaced)
+                                            <br><small class="text-warning"><i class="fas fa-exchange-alt me-1"></i>Đã được đổi key</small>
+                                        @endif
+                                        @if($key->status === 'Revoked' && !$isReplaced && !str_starts_with($key->supplier_transaction_id ?? '', 'REFUNDED:'))
+                                            <br><small class="text-danger"><i class="fas fa-ban me-1"></i>Đã thu hồi</small>
+                                        @endif
                                     </div>
                                     <div class="d-flex gap-1">
-                                        @if($order->status == 'API_Error')
+                                        @if(in_array($order->status, ['API_Error', 'Failed']))
                                         <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#replaceKeyModal{{ $key->id }}">
                                             <i class="fas fa-exchange-alt me-1"></i> Đổi key
                                         </button>
+                                        @if(!$isReplaced && $key->status !== 'Revoked')
                                         <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#refundKeyModal{{ $key->id }}">
                                             <i class="fas fa-undo me-1"></i> Hoàn tiền
                                         </button>
                                         @endif
+                                        @endif
+                                        @if($order->status != 'API_Error' && $key->status !== 'Revoked')
                                         <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#revokeKeyModal{{ $key->id }}">
                                             <i class="fas fa-trash-alt me-1"></i> Thu hồi
                                         </button>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -207,7 +249,7 @@
                                                         </p>
                                                         @if($key->orderItem)
                                                             @php
-                                                                $refundAmount = $key->orderItem->price_at_purchase / ($key->orderItem->quantity ?? 1);
+                                                                $refundAmount = $key->orderItem->price_at_purchase ;
                                                             @endphp
                                                             <p class="small mb-2">Số tiền hoàn: <strong class="text-success">{{ number_format($refundAmount, 0, ',', '.') }}đ</strong></p>
                                                         @endif
@@ -226,7 +268,26 @@
                                             </div>
                                         </div>
                                     </div>
-                                    @endforeach
+                                @endforeach
+
+                                {{-- Hiển thị key đã refund --}}
+                                @if($refundedKeys->isNotEmpty())
+                                <hr class="border-secondary">
+                                <h6 class="text-muted mb-2"><i class="fas fa-undo me-1"></i>Key đã hoàn tiền</h6>
+                                @foreach($refundedKeys as $key)
+                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-dark bg-opacity-50 rounded border border-danger border-opacity-25">
+                                    <div>
+                                        <small class="text-muted d-block">Key: <s class="text-muted">{{ $key->key_code }}</s> <span class="badge bg-danger ms-1">Đã hoàn tiền</span></small>
+                                        @if($key->orderItem->gameVersion && $key->orderItem->gameVersion->game)
+                                            <small class="text-muted">{{ $key->orderItem->gameVersion->game->name }} ({{ $key->orderItem->gameVersion->version_name }})</small>
+                                        @endif
+                                    </div>
+                                    <div>
+                                        <small class="text-danger">{{ number_format($key->orderItem->price_at_purchase ?? 0, 0, ',', '.') }}đ</small>
+                                    </div>
+                                </div>
+                                @endforeach
+                                @endif
                             </div>
                         </div>
                     @endif
@@ -278,15 +339,20 @@
                     <div class="card-footer bg-transparent border-0 p-4">
                         <div class="d-flex justify-content-end align-items-center gap-3">
                             <span class="fs-5 text-muted">Tổng cộng thanh toán:</span>
-                            <span class="fs-3 fw-bold text-danger">{{ number_format($order->total_amount, 0, ',', '.') }}đ</span>
+                            <span class="fs-3 fw-bold text-danger">{{ number_format($displayTotalAmount, 0, ',', '.') }}đ</span>
                         </div>
+                        @if($refundedTotal > 0)
+                        <div class="d-flex justify-content-end align-items-center gap-3 mt-1">
+                            <span class="small text-danger">(Đã hoàn tiền {{ number_format($refundedTotal, 0, ',', '.') }}đ)</span>
+                        </div>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    @if($order->status == 'API_Error')
+    @if(in_array($order->status, ['API_Error', 'Failed']))
     <div class="modal fade" id="manualKeyModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content bg-dark text-white border-secondary">

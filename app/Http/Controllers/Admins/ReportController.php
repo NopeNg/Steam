@@ -52,6 +52,17 @@ class ReportController extends Controller
         // Tổng quan doanh thu
         $totalRevenue = Order::where('status', 'Completed')->whereBetween('created_at', [$start, $end])->sum('total_amount');
         $totalOrders = Order::whereBetween('created_at', [$start, $end])->count();
+
+        // Tính tổng số tiền đã hoàn (refund) dựa trên key có supplier_transaction_id bắt đầu bằng 'REFUNDED:'
+        $totalRefunded = DB::table('game_keys')
+            ->join('order_items', 'game_keys.order_item_id', '=', 'order_items.id')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->where('game_keys.supplier_transaction_id', 'like', 'REFUNDED:%')
+            ->whereBetween('orders.created_at', [$start, $end])
+            ->sum('order_items.price_at_purchase');
+
+        // Doanh thu thực tế = doanh thu - tiền đã hoàn
+        $netRevenue = $totalRevenue - $totalRefunded;
         $completedOrders = Order::where('status', 'Completed')->whereBetween('created_at', [$start, $end])->count();
         $cancelledOrders = Order::where('status', 'Failed')->whereBetween('created_at', [$start, $end])->count();
         $pendingOrders = Order::where('status', 'Pending')->whereBetween('created_at', [$start, $end])->count();
@@ -185,7 +196,10 @@ class ReportController extends Controller
         // ==================== 4. BÁO CÁO KHO HÀNG (KEY) ====================
         $totalKeys = GameKey::count();
         $soldKeys = GameKey::where('status', 'Sold')->count();
-        $errorKeys = GameKey::where('status', 'Revoked')->count();
+        $errorKeys = GameKey::where('status', '!=', 'Sold')
+            ->where('status', '!=', 'Giveaway')
+            ->where('status', '!=', 'Available')
+            ->count();
 
         $linkedGames = Game::has('gameMappings')->get();
         $unlinkedGames = Game::doesntHave('gameMappings')->get();
@@ -194,6 +208,7 @@ class ReportController extends Controller
             'startDate', 'endDate', 'tab',
             'chartRevenueLabels', 'chartRevenueData', 'chartOrderCountData',
             'totalRevenue', 'totalOrders', 'completedOrders', 'cancelledOrders',
+            'netRevenue', 'totalRefunded',
             'pendingOrders', 'apiErrorOrders', 'avgOrderValue',
             'orderStatusData', 'orderStatusLabels',
             'paymentLabels', 'paymentCounts', 'paymentRevenues',
@@ -203,7 +218,7 @@ class ReportController extends Controller
             'newCustomerOrders', 'returningCustomerOrders', 'newCustomerCount',
             'totalCartItems',
             'topCartGames', 'topCartCategories',
-            'totalKeys', 'soldKeys', 'errorKeys',
+            'totalKeys', 'errorKeys',
             'linkedGames', 'unlinkedGames'
         ));
     }

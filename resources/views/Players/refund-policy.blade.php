@@ -23,7 +23,7 @@
 
         <section>
             <h2 class="text-white font-bold text-lg mb-2">Thời gian xử lý</h2>
-            <p>Sau khi tiếp nhận yêu cầu, bộ phận kỹ thuật của SteamKey sẽ tiến hành đối soát với nhà cung cấp API. Thời gian phản hồi dự kiến từ <strong>24h đến 48h làm việc</strong>.</p>
+            <p>Sau khi tiếp nhận yêu cầu, bộ phận kỹ thuật của SteamKey sẽ tiến hành đối soát với nhà cung cấp Key. Thời gian phản hồi dự kiến từ <strong>24h đến 48h làm việc</strong>.</p>
         </section>
 
         <section>

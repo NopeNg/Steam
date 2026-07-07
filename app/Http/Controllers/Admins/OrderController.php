@@ -22,12 +22,24 @@ class OrderController extends Controller
 
         if ($request->filled('search')) {
             $search = trim($request->search);
-            $query->where(function ($q) use ($search) {
-                $q->where('id', 'like', '%' . $search . '%')
-                    ->orWhereHas('player', function ($q2) use ($search) {
-                        $q2->where('username', 'like', '%' . $search . '%')
-                            ->orWhere('email', 'like', '%' . $search . '%');
-                    });
+            // Hỗ trợ tìm kiếm theo #ORD-{id}
+            $searchId = null;
+            if (preg_match('/^#ORD[-\s]*(\d+)$/i', $search, $matches)) {
+                $searchId = $matches[1];
+            } elseif (is_numeric($search)) {
+                $searchId = $search;
+            }
+
+            $query->where(function ($q) use ($search, $searchId) {
+                if ($searchId !== null) {
+                    $q->where('id', $searchId);
+                } else {
+                    $q->where('id', 'like', '%' . $search . '%');
+                }
+                $q->orWhereHas('player', function ($q2) use ($search) {
+                    $q2->where('username', 'like', '%' . $search . '%')
+                        ->orWhere('email', 'like', '%' . $search . '%');
+                });
             });
         }
 
@@ -71,16 +83,24 @@ class OrderController extends Controller
 
     public function refund($id)
     {
-        $order = \App\Models\Order::with(['player', 'orderItems'])->findOrFail($id);
+        $order = \App\Models\Order::with(['player', 'orderItems.gameKeys'])->findOrFail($id);
 
-        if ($order->status !== 'API_Error') {
-            return back()->withErrors(['error' => 'Chỉ có thể hoàn tiền cho đơn hàng bị lỗi API.']);
+        // Kiểm tra đã hoàn tiền trước đó chưa (chống double refund) - dựa vào key đã được đánh dấu REFUNDED
+        $allKeys = $order->orderItems->flatMap(function ($item) {
+            return $item->gameKeys;
+        });
+
+        $hasRefundedKey = $allKeys->contains(function ($key) {
+            return str_starts_with($key->supplier_transaction_id ?? '', 'REFUNDED:');
+        });
+
+        if ($hasRefundedKey) {
+            return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền trước đó. Không thể hoàn tiền lần nữa.']);
         }
 
-        // Kiểm tra đã hoàn tiền trước đó chưa (chống double refund)
-        $alreadyRefunded = \App\Models\WalletTransaction::where('transaction_code', 'REFUND_ORD_' . $order->id)->exists();
-        if ($alreadyRefunded) {
-            return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền trước đó. Không thể hoàn tiền lần nữa.']);
+        // Cho phép hoàn tiền cho cả API_Error và Failed (đơn thất bại từ đầu chưa hoàn)
+        if (!in_array($order->status, ['API_Error', 'Failed'])) {
+            return back()->withErrors(['error' => 'Chỉ có thể hoàn tiền cho đơn hàng bị lỗi key hoặc thất bại.']);
         }
 
         // Kiểm tra đã cấp key thủ công chưa (không tính fallback key do API lỗi)
@@ -92,23 +112,28 @@ class OrderController extends Controller
             return back()->withErrors(['error' => 'Đơn hàng này đã được cấp key. Không thể hoàn tiền sau khi đã cấp key.']);
         }
 
-        $oldStatus = $order->status;
+        // Tính số tiền cần hoàn
+        $refundAmount = $order->total_amount;
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($order) {
-            $order->player->increment('balance', $order->total_amount);
-            $order->update(['status' => 'Cancelled']);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $allKeys, $refundAmount) {
+            // Hoàn tiền vào ví
+            $order->player->increment('balance', $refundAmount);
 
-            \App\Models\WalletTransaction::create([
-                'player_id' => $order->player_id,
-                'amount' => $order->total_amount,
-                'transaction_code' => 'REFUND_ORD_' . $order->id,
-                'status' => 'success'
-            ]);
+            // Đánh dấu tất cả key là đã refund
+            foreach ($allKeys as $key) {
+                $key->update([
+                    'status' => 'Revoked',
+                    'supplier_transaction_id' => 'REFUNDED: ' . $key->key_code,
+                ]);
+            }
+
+            // Chuyển trạng thái đơn hàng sang thất bại (Failed) thay vì Cancelled
+            $order->update(['status' => 'Failed']);
         });
 
-        $this->activityLog->log('Hoàn tiền đơn hàng', 'Đã hoàn ' . number_format($order->total_amount) . ' VNĐ cho đơn hàng #' . $order->id . ' (người chơi ID: ' . $order->player_id . ')');
+        $this->activityLog->log('Hoàn tiền đơn hàng', 'Đã hoàn ' . number_format($refundAmount) . ' VNĐ cho đơn hàng #' . $order->id . ' (người chơi ID: ' . $order->player_id . ')');
 
-        return back()->with('success', 'Đã hoàn tiền thành công vào ví người chơi và hủy đơn hàng.');
+        return back()->with('success', '✅ Hoàn tiền thành công! Đã hoàn ' . number_format($refundAmount, 0, ',', '.') . ' VNĐ vào ví người chơi. Đơn hàng đã chuyển sang trạng thái thất bại.');
     }
     public function manualKey(Request $request, $id)
     {
@@ -122,9 +147,14 @@ class OrderController extends Controller
             return back()->withErrors(['error' => 'Chỉ có thể cấp Key thủ công cho đơn lỗi API.']);
         }
 
-        // Kiểm tra đã hoàn tiền chưa
-        $alreadyRefunded = \App\Models\WalletTransaction::where('transaction_code', 'REFUND_ORD_' . $order->id)->exists();
-        if ($alreadyRefunded) {
+        // Kiểm tra đã hoàn tiền chưa (dựa vào key đã REFUNDED)
+        $allKeys = $order->orderItems->flatMap(function ($item) {
+            return $item->gameKeys;
+        });
+        $hasRefundedKey = $allKeys->contains(function ($key) {
+            return str_starts_with($key->supplier_transaction_id ?? '', 'REFUNDED:');
+        });
+        if ($hasRefundedKey) {
             return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền. Không thể cấp key sau khi hoàn tiền.']);
         }
 

@@ -91,8 +91,8 @@ class KeyController extends Controller
             return back()->withErrors(['error' => 'Key này đã được thu hồi trước đó.']);
         }
 
-        if ($gameKey->status !== 'Delivered' && $gameKey->status !== 'Activated') {
-            return back()->withErrors(['error' => 'Chỉ có thể thu hồi key đã được giao (Delivered) hoặc đã kích hoạt (Activated).']);
+        if ($gameKey->status !== 'Pending' && $gameKey->status !== 'Activated') {
+            return back()->withErrors(['error' => 'Chỉ có thể thu hồi key đã được giao (Pending) hoặc đã kích hoạt (Activated).']);
         }
 
         $gameName = $gameKey->orderItem->version->game->name ?? 'N/A';
@@ -117,14 +117,20 @@ class KeyController extends Controller
      */
     public function refundKey($id)
     {
-        $gameKey = GameKey::with('orderItem.order.player')->findOrFail($id);
+        $gameKey = GameKey::with('orderItem.order.player', 'orderItem.order.orderItems.gameKeys')->findOrFail($id);
 
         if ($gameKey->status === 'Revoked') {
             return back()->withErrors(['error' => 'Key này đã bị thu hồi. Không thể hoàn tiền.']);
         }
 
-        if ($gameKey->status !== 'Delivered' && $gameKey->status !== 'Activated') {
-            return back()->withErrors(['error' => 'Chỉ có thể hoàn tiền cho key đã được giao (Delivered/Activated).']);
+        // Kiểm tra key đã được đổi trước đó chưa
+        if (str_starts_with($gameKey->supplier_transaction_id ?? '', 'REPLACED:')) {
+            return back()->withErrors(['error' => 'Key này đã được đổi. Không thể hoàn tiền sau khi đã đổi key.']);
+        }
+
+        // Kiểm tra key đã được hoàn tiền trước đó chưa (dựa vào supplier_transaction_id)
+        if (str_starts_with($gameKey->supplier_transaction_id ?? '', 'REFUNDED:')) {
+            return back()->withErrors(['error' => 'Key này đã được hoàn tiền trước đó.']);
         }
 
         $orderItem = $gameKey->orderItem;
@@ -135,29 +141,32 @@ class KeyController extends Controller
             return back()->withErrors(['error' => 'Không tìm thấy thông tin đơn hàng hoặc người chơi.']);
         }
 
-        // Kiểm tra đã hoàn tiền key này chưa
-        $alreadyRefunded = \App\Models\WalletTransaction::where('transaction_code', 'REFUND_KEY_' . $gameKey->id)->exists();
-        if ($alreadyRefunded) {
-            return back()->withErrors(['error' => 'Key này đã được hoàn tiền trước đó.']);
+        // Kiểm tra đơn hàng đã được hoàn tiền toàn bộ trước đó chưa (dựa vào key đã REFUNDED)
+        $allKeysInOrder = $order->orderItems->flatMap(function ($item) {
+            return $item->gameKeys;
+        });
+        $allRefunded = $allKeysInOrder->every(function ($k) {
+            return str_starts_with($k->supplier_transaction_id ?? '', 'REFUNDED:');
+        });
+        if ($allRefunded) {
+            return back()->withErrors(['error' => 'Đơn hàng này đã được hoàn tiền toàn bộ. Không thể hoàn tiền từng key.']);
         }
 
-        // Tính tiền hoàn: price của 1 key (chia đều nếu order_item có nhiều quantity)
-        $refundAmount = $orderItem->price_at_purchase / ($orderItem->quantity ?? 1);
+        // Tính tiền hoàn: price của 1 key 
+        $refundAmount = $orderItem->price_at_purchase ;
 
-        DB::transaction(function () use ($gameKey, $player, $refundAmount) {
-            // Cập nhật status key
-            $gameKey->update(['status' => 'Revoked']);
+        DB::transaction(function () use ($gameKey, $player, $refundAmount, $order) {
+            // Cập nhật status key thành Revoked và lưu dấu hiệu đã hoàn tiền
+            $gameKey->update([
+                'status' => 'Revoked',
+                'supplier_transaction_id' => 'REFUNDED: ' . $gameKey->key_code,
+            ]);
 
             // Hoàn tiền vào ví
             $player->increment('balance', $refundAmount);
 
-            // Ghi nhận giao dịch
-            \App\Models\WalletTransaction::create([
-                'player_id' => $player->id,
-                'amount' => $refundAmount,
-                'transaction_code' => 'REFUND_KEY_' . $gameKey->id,
-                'status' => 'success'
-            ]);
+            // Không thay đổi total_amount của đơn hàng trong DB,
+            // số tiền đã hoàn sẽ được hiển thị ở view dựa trên các key có supplier_transaction_id bắt đầu bằng 'REFUNDED:'
         });
 
         $this->activityLog->log('Hoàn tiền key', 'Đã hoàn ' . number_format($refundAmount, 0, ',', '.') . ' VNĐ cho key ID: ' . $gameKey->id . ' (game: ' . ($gameKey->orderItem->version->game->name ?? 'N/A') . ', đơn hàng #' . $order->id . ')');
@@ -182,8 +191,8 @@ class KeyController extends Controller
             return back()->withErrors(['error' => 'Key này đã bị thu hồi. Không thể đổi key mới.']);
         }
 
-        if ($gameKey->status !== 'Delivered' && $gameKey->status !== 'Activated') {
-            return back()->withErrors(['error' => 'Chỉ có thể đổi key cho key đã được giao (Delivered/Activated).']);
+        if ($gameKey->status !== 'Pending' && $gameKey->status !== 'Activated') {
+            return back()->withErrors(['error' => 'Chỉ có thể đổi key cho key đã được giao (Pending/Activated).']);
         }
 
         $orderItem = $gameKey->orderItem;
@@ -200,7 +209,7 @@ class KeyController extends Controller
             ]);
 
             // Cập nhật library với key mới
-            \App\Models\Library::where('game_key_id', $gameKey->id)->update([
+            Library::where('game_key_id', $gameKey->id)->update([
                 'key_code' => trim($request->new_key_code),
             ]);
         });
