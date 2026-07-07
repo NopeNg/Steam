@@ -40,7 +40,9 @@
                     <a href="{{ route('games.index') }}"
                         class="hover:text-white transition {{ request()->routeIs('games.*') ? 'text-sky-400' : '' }}">Trò
                         Chơi</a>
-                    <a href="#" class="hover:text-white transition">Cộng Đồng</a>
+                    <a href="{{ route('friends.index') }}"
+                        class="hover:text-white transition {{ request()->routeIs('friends.*') || request()->routeIs('social.*') || request()->routeIs('gifts.*') ? 'text-sky-400' : '' }}">Cộng
+                        Đồng</a>
                     <a href="#" class="hover:text-white transition">Hỗ Trợ</a>
                 </nav>
             </div>

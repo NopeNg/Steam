@@ -56,12 +56,6 @@
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {{ $tab === 'cart' ? 'active' : '' }}"
-            href="?{{ http_build_query(array_merge(request()->query(), ['tab' => 'cart'])) }}">
-            <i class="fas fa-shopping-cart me-1"></i>Giỏ hàng
-        </a>
-    </li>
-    <li class="nav-item">
         <a class="nav-link {{ $tab === 'inventory' ? 'active' : '' }}"
             href="?{{ http_build_query(array_merge(request()->query(), ['tab' => 'inventory'])) }}">
             <i class="fas fa-boxes-stacked me-1"></i>Kho hàng Key
@@ -327,119 +321,6 @@
     </div>
 </div>
 
-@elseif($tab === 'cart')
-<div class="row g-4 mb-4">
-    <div class="col-md-12">
-        <div class="card text-center border-0 shadow-sm">
-            <div class="card-body">
-                <div class="text-warning mb-1"><i class="fas fa-shopping-cart fa-2x"></i></div>
-                <h6 class="text-muted">Tổng sản phẩm đang có trong giỏ hàng</h6>
-                <h4 class="fw-bold">{{ $totalCartItems }}</h4>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-4 mb-4">
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header fw-bold">
-                <i class="fas fa-gamepad me-2"></i>Top game được thêm vào giỏ nhiều nhất
-            </div>
-            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                <table class="table table-hover table-sm mb-0">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Game</th>
-                            <th>Lượt thêm</th>
-                            <th>Tổng số lượng</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($topCartGames as $idx => $item)
-                        <tr>
-                            <td>{{ $idx + 1 }}</td>
-                            <td>{{ $item->game_name }}</td>
-                            <td><span class="badge bg-info">{{ $item->total_added }}</span></td>
-                            <td>{{ $item->total_quantity }}</td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="4" class="text-muted text-center">Chưa có dữ liệu</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header fw-bold">
-                <i class="fas fa-tags me-2"></i>Thể loại game được quan tâm trong giỏ hàng
-            </div>
-            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                <table class="table table-hover table-sm mb-0">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Thể loại</th>
-                            <th>Lượt thêm</th>
-                            <th>Tổng số lượng</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($topCartCategories as $idx => $cat)
-                        <tr>
-                            <td>{{ $idx + 1 }}</td>
-                            <td><span class="badge bg-secondary">{{ $cat->category_name }}</span></td>
-                            <td><span class="badge bg-info">{{ $cat->total_added }}</span></td>
-                            <td>{{ $cat->total_quantity }}</td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="4" class="text-muted text-center">Chưa có dữ liệu</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-4">
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header fw-bold">
-                <i class="fas fa-chart-bar me-2"></i>Top game trong giỏ hàng (Chart)
-            </div>
-            <div class="card-body">
-                @if(count($topCartGames) > 0)
-                <canvas id="topCartGamesChart" height="200"></canvas>
-                @else
-                <p class="text-muted text-center">Chưa có dữ liệu</p>
-                @endif
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header fw-bold">
-                <i class="fas fa-chart-pie me-2"></i>Thể loại trong giỏ hàng (Chart)
-            </div>
-            <div class="card-body">
-                @if(count($topCartCategories) > 0)
-                <canvas id="topCartCategoriesChart" height="200"></canvas>
-                @else
-                <p class="text-muted text-center">Chưa có dữ liệu</p>
-                @endif
-            </div>
-        </div>
-    </div>
-</div>
-
 @elseif($tab === 'inventory')
 <div class="row g-4 mb-4">
     <div class="col-md-4">
@@ -455,7 +336,7 @@
         <div class="card text-center border-0 shadow-sm">
             <div class="card-body">
                 <div class="text-danger mb-1"><i class="fas fa-exclamation-triangle fa-2x"></i></div>
-                <h6 class="text-muted">Key lỗi</h6>
+                <h6 class="text-muted">Key đã thu hồi</h6>
                 <h4 class="fw-bold">{{ $errorKeys }}</h4>
             </div>
         </div>
@@ -648,50 +529,6 @@
             }
         }
     });
-    @endif
-
-    @if($tab === 'cart')
-    @if(count($topCartGames) > 0)
-    new Chart(document.getElementById('topCartGamesChart'), {
-        type: 'bar',
-        data: {
-            labels: @json($topCartGames->pluck('game_name')),
-            datasets: [{
-                label: 'Lượt thêm vào giỏ',
-                data: @json($topCartGames->pluck('total_added')),
-                backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
-                                 '#858796', '#5a5c69', '#2e59d9', '#17a673', '#2c9faf']
-            }]
-        },
-        options: {
-            responsive: true,
-            indexAxis: 'y',
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { grid: { display: false } },
-                x: { beginAtZero: true, grid: { color: gridColor } }
-            }
-        }
-    });
-    @endif
-
-    @if(count($topCartCategories) > 0)
-    new Chart(document.getElementById('topCartCategoriesChart'), {
-        type: 'doughnut',
-        data: {
-            labels: @json($topCartCategories->pluck('category_name')),
-            datasets: [{
-                data: @json($topCartCategories->pluck('total_added')),
-                backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
-                                 '#858796', '#5a5c69', '#2e59d9', '#17a673', '#2c9faf']
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { position: 'bottom' } }
-        }
-    });
-    @endif
     @endif
 </script>
 @endsection

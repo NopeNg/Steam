@@ -20,15 +20,19 @@ class GiftController extends Controller implements HasMiddleware
         ];
     }
 
-    // Hiển thị form gửi quà - lấy key từ thư viện của người dùng
+    // Hiển thị form gửi quà - lấy key từ thư viện của người dùng (loại trừ game đã tặng)
     public function showSendForm($friendId) {
         $friend = Player::findOrFail($friendId);
         $myId = Auth::guard('player')->id();
 
+        // Lấy danh sách game_key_id đã được gửi quà (tránh xuất hiện lại trong dropdown)
+        $giftedKeyIds = Gift::pluck('game_key_id')->toArray();
+
         $myGames = \App\Models\Library::with(['gameKey.orderItem.version.game'])
             ->where('player_id', $myId)
-            ->whereHas('gameKey', function($q) {
-                $q->whereIn('status', ['Pending', 'Giveaway', 'Delivered']);
+            ->whereHas('gameKey', function($q) use ($giftedKeyIds) {
+                $q->whereIn('status', ['Pending', 'Giveaway', 'Delivered'])
+                  ->whereNotIn('id', $giftedKeyIds);
             })
             ->get()
             ->map(function($lib) {
@@ -38,6 +42,7 @@ class GiftController extends Controller implements HasMiddleware
                     'key_id' => $lib->gameKey->id,
                     'game_name' => $game ? $game->name : 'Game không xác định',
                     'version_name' => $version ? $version->version_name : 'N/A',
+                    'cover_image' => $game && $game->cover_image ? $game->cover_image : null,
                 ];
             });
 

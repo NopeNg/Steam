@@ -19,7 +19,8 @@
             @php
                 $links = [
                     ['route' => 'library.index', 'icon' => 'fa-gamepad', 'label' => 'Thư Viện Trò Chơi'],
-                    ['route' => 'social.index', 'icon' => 'fa-users', 'label' => 'Bạn Bè & Quà Tặng'],
+                    ['route' => 'friends.index', 'icon' => 'fa-users', 'label' => 'Cộng Đồng / Bạn Bè'],
+                    ['route' => 'gifts.index', 'icon' => 'fa-gift', 'label' => 'Hộp Quà Tặng'],
                     ['route' => 'orders.history', 'icon' => 'fa-receipt', 'label' => 'Lịch Sử Giao Dịch'],
                     ['route' => 'library.redeem', 'icon' => 'fa-plus', 'label' => 'Kích hoạt mã (Redeem)'],
                 ];

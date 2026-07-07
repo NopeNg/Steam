@@ -185,10 +185,7 @@ class ReportController extends Controller
         // ==================== 4. BÁO CÁO KHO HÀNG (KEY) ====================
         $totalKeys = GameKey::count();
         $soldKeys = GameKey::where('status', 'Sold')->count();
-        $errorKeys = GameKey::where('status', '!=', 'Sold')
-            ->where('status', '!=', 'Giveaway')
-            ->where('status', '!=', 'Available')
-            ->count();
+        $errorKeys = GameKey::where('status', 'Revoked')->count();
 
         $linkedGames = Game::has('gameMappings')->get();
         $unlinkedGames = Game::doesntHave('gameMappings')->get();
